@@ -1,32 +1,47 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import MainTabNavigator from "@/navigation/MainTabNavigator";
-import ModalScreen from "@/screens/ModalScreen";
+
+import WebViewScreen from "@/screens/WebViewScreen";
+import SettingsScreen from "@/screens/SettingsScreen";
+import ErrorScreen from "@/screens/ErrorScreen";
+import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
-  Main: undefined;
-  Modal: undefined;
+  WebView: undefined;
+  Settings: undefined;
+  Error: { url?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
-  const screenOptions = useScreenOptions();
+  const screenOptions = useScreenOptions({ transparent: false });
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="Main"
-        component={MainTabNavigator}
-        options={{ headerShown: false }}
+        name="WebView"
+        component={WebViewScreen}
+        options={{
+          headerTitle: () => <HeaderTitle title="Health Staff Pros" />,
+          headerShown: false,
+        }}
       />
       <Stack.Screen
-        name="Modal"
-        component={ModalScreen}
+        name="Settings"
+        component={SettingsScreen}
         options={{
+          title: "Settings",
           presentation: "modal",
-          headerTitle: "Modal",
+        }}
+      />
+      <Stack.Screen
+        name="Error"
+        component={ErrorScreen}
+        options={{
+          headerShown: false,
+          presentation: "fullScreenModal",
         }}
       />
     </Stack.Navigator>

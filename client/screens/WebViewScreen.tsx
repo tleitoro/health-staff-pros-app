@@ -1,0 +1,324 @@
+import React, { useRef, useState, useCallback } from "react";
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  Pressable,
+} from "react-native";
+import { WebView, WebViewNavigation } from "react-native-webview";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { HeaderButton } from "@react-navigation/elements";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
+
+import { useTheme } from "@/hooks/useTheme";
+import { BrandColors, Spacing } from "@/constants/theme";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+const WEB_URL = "https://healthstaffpros.com";
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+export default function WebViewScreen() {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp>();
+  const webViewRef = useRef<WebView>(null);
+
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [canGoForward, setCanGoForward] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [hasError, setHasError] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(WEB_URL);
+  const [refreshing, setRefreshing] = useState(false);
+  const [scrollOffset, setScrollOffset] = useState(0);
+
+  const progressWidth = useSharedValue(0);
+  const progressOpacity = useSharedValue(1);
+  const backToTopOpacity = useSharedValue(0);
+
+  const handleNavigationStateChange = useCallback(
+    (navState: WebViewNavigation) => {
+      setCanGoBack(navState.canGoBack);
+      setCanGoForward(navState.canGoForward);
+      setCurrentUrl(navState.url);
+    },
+    []
+  );
+
+  const handleLoadStart = useCallback(() => {
+    setIsLoading(true);
+    setHasError(false);
+    progressOpacity.value = withTiming(1, { duration: 100 });
+  }, [progressOpacity]);
+
+  const handleLoadEnd = useCallback(() => {
+    setIsLoading(false);
+    setRefreshing(false);
+    progressOpacity.value = withTiming(0, { duration: 300 });
+  }, [progressOpacity]);
+
+  const handleLoadProgress = useCallback(
+    ({ nativeEvent }: { nativeEvent: { progress: number } }) => {
+      setLoadProgress(nativeEvent.progress);
+      progressWidth.value = withSpring(nativeEvent.progress * 100, {
+        damping: 15,
+        stiffness: 100,
+      });
+    },
+    [progressWidth]
+  );
+
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoading(false);
+    navigation.navigate("Error", { url: currentUrl });
+  }, [currentUrl, navigation]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    webViewRef.current?.reload();
+  }, []);
+
+  const handleGoBack = useCallback(() => {
+    if (canGoBack) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      webViewRef.current?.goBack();
+    }
+  }, [canGoBack]);
+
+  const handleGoForward = useCallback(() => {
+    if (canGoForward) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      webViewRef.current?.goForward();
+    }
+  }, [canGoForward]);
+
+  const handleScrollToTop = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    webViewRef.current?.injectJavaScript("window.scrollTo(0, 0); true;");
+  }, []);
+
+  const handleScroll = useCallback(
+    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
+      const offsetY = event.nativeEvent.contentOffset.y;
+      setScrollOffset(offsetY);
+      backToTopOpacity.value = withTiming(offsetY > 300 ? 1 : 0, {
+        duration: 200,
+      });
+    },
+    [backToTopOpacity]
+  );
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${progressWidth.value}%`,
+    opacity: progressOpacity.value,
+  }));
+
+  const backToTopStyle = useAnimatedStyle(() => ({
+    opacity: backToTopOpacity.value,
+    transform: [
+      {
+        scale: interpolate(
+          backToTopOpacity.value,
+          [0, 1],
+          [0.8, 1],
+          Extrapolation.CLAMP
+        ),
+      },
+    ],
+  }));
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () =>
+        canGoBack ? (
+          <HeaderButton onPress={handleGoBack}>
+            <Feather name="chevron-left" size={24} color={theme.text} />
+          </HeaderButton>
+        ) : null,
+      headerRight: () => (
+        <View style={styles.headerRightContainer}>
+          {canGoForward ? (
+            <HeaderButton onPress={handleGoForward}>
+              <Feather name="chevron-right" size={24} color={theme.text} />
+            </HeaderButton>
+          ) : null}
+          <HeaderButton onPress={() => navigation.navigate("Settings")}>
+            <Feather name="settings" size={22} color={theme.text} />
+          </HeaderButton>
+        </View>
+      ),
+    });
+  }, [
+    navigation,
+    canGoBack,
+    canGoForward,
+    handleGoBack,
+    handleGoForward,
+    theme.text,
+  ]);
+
+  const injectedJavaScript = `
+    (function() {
+      // Disable zoom
+      var meta = document.createElement('meta');
+      meta.setAttribute('name', 'viewport');
+      meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+      document.getElementsByTagName('head')[0].appendChild(meta);
+      
+      // Track scroll position
+      window.addEventListener('scroll', function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'scroll',
+          offsetY: window.scrollY
+        }));
+      });
+      
+      true;
+    })();
+  `;
+
+  const handleMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        if (data.type === "scroll") {
+          backToTopOpacity.value = withTiming(data.offsetY > 300 ? 1 : 0, {
+            duration: 200,
+          });
+        }
+      } catch (e) {
+        // Ignore non-JSON messages
+      }
+    },
+    [backToTopOpacity]
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+      <Animated.View
+        style={[
+          styles.progressBar,
+          { backgroundColor: BrandColors.primary, top: insets.top },
+          progressBarStyle,
+        ]}
+      />
+
+      <WebView
+        ref={webViewRef}
+        source={{ uri: WEB_URL }}
+        style={[styles.webView, { marginTop: insets.top }]}
+        onNavigationStateChange={handleNavigationStateChange}
+        onLoadStart={handleLoadStart}
+        onLoadEnd={handleLoadEnd}
+        onLoadProgress={handleLoadProgress}
+        onError={handleError}
+        onHttpError={handleError}
+        onMessage={handleMessage}
+        injectedJavaScript={injectedJavaScript}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        sharedCookiesEnabled={true}
+        thirdPartyCookiesEnabled={true}
+        cacheEnabled={true}
+        pullToRefreshEnabled={Platform.OS !== "web"}
+        allowsBackForwardNavigationGestures={true}
+        allowsInlineMediaPlayback={true}
+        mediaPlaybackRequiresUserAction={false}
+        startInLoadingState={true}
+        renderLoading={() => (
+          <View
+            style={[
+              styles.loadingContainer,
+              { backgroundColor: theme.backgroundRoot },
+            ]}
+          >
+            <ActivityIndicator size="large" color={BrandColors.primary} />
+          </View>
+        )}
+        contentInset={{ bottom: insets.bottom }}
+        automaticallyAdjustContentInsets={false}
+      />
+
+      <Animated.View
+        style={[
+          styles.backToTopButton,
+          {
+            bottom: insets.bottom + Spacing.xl,
+            backgroundColor: BrandColors.primary,
+          },
+          backToTopStyle,
+        ]}
+      >
+        <Pressable
+          onPress={handleScrollToTop}
+          style={styles.backToTopPressable}
+          hitSlop={8}
+        >
+          <Feather name="arrow-up" size={20} color="#FFFFFF" />
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  webView: {
+    flex: 1,
+  },
+  progressBar: {
+    position: "absolute",
+    left: 0,
+    height: 3,
+    zIndex: 100,
+  },
+  loadingContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerRightContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  backToTopButton: {
+    position: "absolute",
+    right: Spacing.lg,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  backToTopPressable: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
