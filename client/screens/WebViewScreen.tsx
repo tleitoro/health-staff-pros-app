@@ -257,13 +257,38 @@ function NativeWebViewScreen() {
     theme.text,
   ]);
 
+  const injectedJavaScriptBeforeContentLoaded = `
+    (function() {
+      // Mark this as running inside the native app - runs BEFORE page content loads
+      window.isHealthStaffProsApp = true;
+      window.HealthStaffProsApp = { version: '1.0', platform: '${Platform.OS}' };
+      
+      // Prevent beforeinstallprompt event early
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        return false;
+      });
+      
+      true;
+    })();
+  `;
+
   const injectedJavaScript = `
     (function() {
+      // Reinforce native app markers
+      window.isHealthStaffProsApp = true;
+      window.HealthStaffProsApp = { version: '1.0', platform: '${Platform.OS}' };
+      
       // Disable zoom
       var meta = document.createElement('meta');
       meta.setAttribute('name', 'viewport');
       meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
       document.getElementsByTagName('head')[0].appendChild(meta);
+      
+      // Hide PWA install prompts if they exist
+      var style = document.createElement('style');
+      style.textContent = '.pwa-install-prompt, .app-install-banner, [data-pwa-install], .install-app-prompt, .add-to-home-screen, .install-banner { display: none !important; }';
+      document.head.appendChild(style);
       
       // Track scroll position
       window.addEventListener('scroll', function() {
@@ -314,6 +339,7 @@ function NativeWebViewScreen() {
         onError={handleError}
         onHttpError={handleError}
         onMessage={handleMessage}
+        injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
         injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         domStorageEnabled={true}
