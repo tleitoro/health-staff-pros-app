@@ -8,6 +8,7 @@ import {
   ScrollView,
   Pressable,
   Linking,
+  Text,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -43,28 +44,26 @@ const WEB_URL = "https://healthstaffpros.com";
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function WebFallbackScreen() {
-  const { theme } = useTheme();
-  
   return (
-    <ThemedView style={webFallbackStyles.container}>
+    <View style={webFallbackStyles.container}>
       <View style={webFallbackStyles.content}>
         <Feather name="smartphone" size={64} color={BrandColors.primary} />
-        <ThemedText style={webFallbackStyles.title}>
+        <Text style={webFallbackStyles.title}>
           Mobile App Only
-        </ThemedText>
-        <ThemedText style={webFallbackStyles.text}>
+        </Text>
+        <Text style={webFallbackStyles.text}>
           This app is designed for iOS and Android devices. Please scan the QR code with Expo Go to use the app on your phone.
-        </ThemedText>
+        </Text>
         <Pressable
           style={webFallbackStyles.button}
           onPress={() => Linking.openURL(WEB_URL)}
         >
-          <ThemedText style={webFallbackStyles.buttonText}>
+          <Text style={webFallbackStyles.buttonText}>
             Visit healthstaffpros.com
-          </ThemedText>
+          </Text>
         </Pressable>
       </View>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -73,7 +72,8 @@ const webFallbackStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: Spacing.xl,
+    padding: 24,
+    backgroundColor: "#FFFFFF",
   },
   content: {
     alignItems: "center",
@@ -82,21 +82,22 @@ const webFallbackStyles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "700",
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
+    marginTop: 16,
+    marginBottom: 12,
     textAlign: "center",
+    color: "#1A1A1A",
   },
   text: {
     fontSize: 16,
     textAlign: "center",
-    opacity: 0.7,
+    color: "#666666",
     lineHeight: 24,
-    marginBottom: Spacing.xl,
+    marginBottom: 24,
   },
   button: {
     backgroundColor: BrandColors.primary,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 12,
   },
   buttonText: {
