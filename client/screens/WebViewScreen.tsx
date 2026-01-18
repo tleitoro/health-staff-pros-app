@@ -42,11 +42,83 @@ const WEB_URL = "https://healthstaffpros.com";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+function WebFallbackScreen() {
+  const { theme } = useTheme();
+  
+  return (
+    <ThemedView style={webFallbackStyles.container}>
+      <View style={webFallbackStyles.content}>
+        <Feather name="smartphone" size={64} color={BrandColors.primary} />
+        <ThemedText style={webFallbackStyles.title}>
+          Mobile App Only
+        </ThemedText>
+        <ThemedText style={webFallbackStyles.text}>
+          This app is designed for iOS and Android devices. Please scan the QR code with Expo Go to use the app on your phone.
+        </ThemedText>
+        <Pressable
+          style={webFallbackStyles.button}
+          onPress={() => Linking.openURL(WEB_URL)}
+        >
+          <ThemedText style={webFallbackStyles.buttonText}>
+            Visit healthstaffpros.com
+          </ThemedText>
+        </Pressable>
+      </View>
+    </ThemedView>
+  );
+}
+
+const webFallbackStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+  content: {
+    alignItems: "center",
+    maxWidth: 400,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+  text: {
+    fontSize: 16,
+    textAlign: "center",
+    opacity: 0.7,
+    lineHeight: 24,
+    marginBottom: Spacing.xl,
+  },
+  button: {
+    backgroundColor: BrandColors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+  },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});
+
 export default function WebViewScreen() {
+  if (Platform.OS === "web") {
+    return <WebFallbackScreen />;
+  }
+
+  return <NativeWebViewScreen />;
+}
+
+function NativeWebViewScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<typeof WebView>(null);
 
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
@@ -220,30 +292,6 @@ export default function WebViewScreen() {
     [backToTopOpacity]
   );
 
-  if (Platform.OS === "web") {
-    return (
-      <ThemedView style={styles.webFallbackContainer}>
-        <View style={styles.webFallbackContent}>
-          <Feather name="smartphone" size={64} color={BrandColors.primary} />
-          <ThemedText style={styles.webFallbackTitle}>
-            Mobile App Only
-          </ThemedText>
-          <ThemedText style={styles.webFallbackText}>
-            This app is designed for iOS and Android devices. Please scan the QR code with Expo Go to use the app on your phone.
-          </ThemedText>
-          <Pressable
-            style={styles.webFallbackButton}
-            onPress={() => Linking.openURL(WEB_URL)}
-          >
-            <ThemedText style={styles.webFallbackButtonText}>
-              Visit healthstaffpros.com
-            </ThemedText>
-          </Pressable>
-        </View>
-      </ThemedView>
-    );
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <Animated.View
@@ -362,40 +410,5 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-  },
-  webFallbackContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: Spacing.xl,
-  },
-  webFallbackContent: {
-    alignItems: "center",
-    maxWidth: 400,
-  },
-  webFallbackTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-    textAlign: "center",
-  },
-  webFallbackText: {
-    fontSize: 16,
-    textAlign: "center",
-    opacity: 0.7,
-    lineHeight: 24,
-    marginBottom: Spacing.xl,
-  },
-  webFallbackButton: {
-    backgroundColor: BrandColors.primary,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: 12,
-  },
-  webFallbackButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
   },
 });
