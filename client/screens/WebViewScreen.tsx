@@ -7,8 +7,8 @@ import {
   RefreshControl,
   ScrollView,
   Pressable,
+  Linking,
 } from "react-native";
-import { WebView, WebViewNavigation } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -27,6 +27,16 @@ import Animated, {
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import ThemedText from "@/components/ThemedText";
+import ThemedView from "@/components/ThemedView";
+
+let WebView: any = null;
+let WebViewNavigation: any = null;
+if (Platform.OS !== "web") {
+  const webViewModule = require("react-native-webview");
+  WebView = webViewModule.WebView;
+  WebViewNavigation = webViewModule.WebViewNavigation;
+}
 
 const WEB_URL = "https://healthstaffpros.com";
 
@@ -210,6 +220,30 @@ export default function WebViewScreen() {
     [backToTopOpacity]
   );
 
+  if (Platform.OS === "web") {
+    return (
+      <ThemedView style={styles.webFallbackContainer}>
+        <View style={styles.webFallbackContent}>
+          <Feather name="smartphone" size={64} color={BrandColors.primary} />
+          <ThemedText style={styles.webFallbackTitle}>
+            Mobile App Only
+          </ThemedText>
+          <ThemedText style={styles.webFallbackText}>
+            This app is designed for iOS and Android devices. Please scan the QR code with Expo Go to use the app on your phone.
+          </ThemedText>
+          <Pressable
+            style={styles.webFallbackButton}
+            onPress={() => Linking.openURL(WEB_URL)}
+          >
+            <ThemedText style={styles.webFallbackButtonText}>
+              Visit healthstaffpros.com
+            </ThemedText>
+          </Pressable>
+        </View>
+      </ThemedView>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <Animated.View
@@ -328,5 +362,40 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
+  },
+  webFallbackContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+  webFallbackContent: {
+    alignItems: "center",
+    maxWidth: 400,
+  },
+  webFallbackTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+  webFallbackText: {
+    fontSize: 16,
+    textAlign: "center",
+    opacity: 0.7,
+    lineHeight: 24,
+    marginBottom: Spacing.xl,
+  },
+  webFallbackButton: {
+    backgroundColor: BrandColors.primary,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+  },
+  webFallbackButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
