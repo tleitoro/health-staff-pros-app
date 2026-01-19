@@ -49,11 +49,11 @@ function WebFallbackScreen() {
   React.useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <HeaderButton onPress={() => navigation.navigate("Features")}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+          <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
             <Feather name="grid" size={22} color={BrandColors.primary} />
           </HeaderButton>
-          <HeaderButton onPress={() => navigation.navigate("Settings")}>
+          <HeaderButton onPress={() => navigation.navigate("Settings")} testID="header-settings-button">
             <Feather name="settings" size={22} color="#1A1A1A" />
           </HeaderButton>
         </View>
@@ -274,21 +274,21 @@ function NativeWebViewScreen() {
     navigation.setOptions({
       headerLeft: () =>
         canGoBack ? (
-          <HeaderButton onPress={handleGoBack}>
+          <HeaderButton onPress={handleGoBack} testID="header-back-button">
             <Feather name="chevron-left" size={24} color={theme.text} />
           </HeaderButton>
         ) : null,
       headerRight: () => (
         <View style={styles.headerRightContainer}>
           {canGoForward ? (
-            <HeaderButton onPress={handleGoForward}>
+            <HeaderButton onPress={handleGoForward} testID="header-forward-button">
               <Feather name="chevron-right" size={24} color={theme.text} />
             </HeaderButton>
           ) : null}
-          <HeaderButton onPress={() => navigation.navigate("Features")}>
+          <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
             <Feather name="grid" size={22} color={BrandColors.primary} />
           </HeaderButton>
-          <HeaderButton onPress={() => navigation.navigate("Settings")}>
+          <HeaderButton onPress={() => navigation.navigate("Settings")} testID="header-settings-button">
             <Feather name="settings" size={22} color={theme.text} />
           </HeaderButton>
         </View>
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   headerRightContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.xs,
+    gap: Spacing.lg,
   },
   backToTopButton: {
     position: "absolute",
