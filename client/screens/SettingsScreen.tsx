@@ -7,6 +7,7 @@ import {
   Alert,
   Linking,
   Platform,
+  Text,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -14,9 +15,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
-import Constants from "expo-constants";
 
-import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing, BorderRadius } from "@/constants/theme";
@@ -43,7 +42,9 @@ function SettingsItem({
   const [isPressed, setIsPressed] = useState(false);
 
   const handlePress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     onPress();
   }, [onPress]);
 
@@ -78,21 +79,18 @@ function SettingsItem({
         />
       </View>
       <View style={styles.settingsItemContent}>
-        <ThemedText
+        <Text
           style={[
             styles.settingsItemTitle,
-            isDestructive && { color: BrandColors.error },
+            { color: isDestructive ? BrandColors.error : theme.text },
           ]}
         >
           {title}
-        </ThemedText>
+        </Text>
         {subtitle ? (
-          <ThemedText
-            type="small"
-            style={[styles.settingsItemSubtitle, { color: theme.textSecondary }]}
-          >
+          <Text style={[styles.settingsItemSubtitle, { color: theme.textSecondary }]}>
             {subtitle}
-          </ThemedText>
+          </Text>
         ) : null}
       </View>
       {showChevron ? (
@@ -113,12 +111,9 @@ function SettingsSection({
 
   return (
     <View style={styles.section}>
-      <ThemedText
-        type="small"
-        style={[styles.sectionTitle, { color: theme.textSecondary }]}
-      >
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
         {title}
-      </ThemedText>
+      </Text>
       <View
         style={[
           styles.sectionContent,
@@ -135,7 +130,7 @@ export default function SettingsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const appVersion = "1.0.0";
 
   const handleClearCache = useCallback(() => {
     Alert.alert(
@@ -147,7 +142,9 @@ export default function SettingsScreen() {
           text: "Clear",
           style: "destructive",
           onPress: () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
             Alert.alert("Cache Cleared", "Website cache has been cleared.");
           },
         },
@@ -165,7 +162,9 @@ export default function SettingsScreen() {
           text: "Clear",
           style: "destructive",
           onPress: () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
             Alert.alert("Cookies Cleared", "All cookies have been cleared.");
           },
         },
@@ -259,29 +258,20 @@ export default function SettingsScreen() {
 
         <SettingsSection title="ABOUT">
           <View style={styles.aboutItem}>
-            <ThemedText style={styles.aboutLabel}>Version</ThemedText>
-            <ThemedText
-              type="small"
-              style={[styles.aboutValue, { color: theme.textSecondary }]}
-            >
+            <Text style={[styles.aboutLabel, { color: theme.text }]}>Version</Text>
+            <Text style={[styles.aboutValue, { color: theme.textSecondary }]}>
               {appVersion}
-            </ThemedText>
+            </Text>
           </View>
         </SettingsSection>
 
         <View style={styles.footer}>
-          <ThemedText
-            type="small"
-            style={[styles.footerText, { color: theme.textTertiary }]}
-          >
+          <Text style={[styles.footerText, { color: theme.textTertiary }]}>
             Health Staff Pros
-          </ThemedText>
-          <ThemedText
-            type="small"
-            style={[styles.footerText, { color: theme.textTertiary }]}
-          >
+          </Text>
+          <Text style={[styles.footerText, { color: theme.textTertiary }]}>
             Professional Healthcare Staffing
-          </ThemedText>
+          </Text>
         </View>
       </ScrollView>
     </ThemedView>
@@ -304,6 +294,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
     fontWeight: "600",
+    fontSize: 12,
   },
   sectionContent: {
     borderRadius: BorderRadius.md,
@@ -327,9 +318,11 @@ const styles = StyleSheet.create({
   },
   settingsItemTitle: {
     fontWeight: "500",
+    fontSize: 16,
   },
   settingsItemSubtitle: {
     marginTop: 2,
+    fontSize: 14,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -343,8 +336,11 @@ const styles = StyleSheet.create({
   },
   aboutLabel: {
     fontWeight: "500",
+    fontSize: 16,
   },
-  aboutValue: {},
+  aboutValue: {
+    fontSize: 14,
+  },
   footer: {
     alignItems: "center",
     marginTop: Spacing["3xl"],
@@ -352,5 +348,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     textAlign: "center",
+    fontSize: 14,
   },
 });
