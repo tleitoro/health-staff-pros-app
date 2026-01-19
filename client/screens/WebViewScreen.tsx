@@ -344,6 +344,63 @@ function NativeWebViewScreen() {
         }));
       });
       
+      // Listen for profile picture upload success and bust cache
+      var originalFetch = window.fetch;
+      window.fetch = function() {
+        return originalFetch.apply(this, arguments).then(function(response) {
+          var url = arguments[0];
+          if (typeof url === 'string' && (url.includes('profile') || url.includes('upload') || url.includes('avatar') || url.includes('picture'))) {
+            // After upload API call, bust image caches
+            setTimeout(function() {
+              var images = document.querySelectorAll('img[src*="profile"], img[src*="avatar"], img[src*="user"], img.profile-image, img.avatar');
+              images.forEach(function(img) {
+                var src = img.src;
+                if (src) {
+                  var separator = src.includes('?') ? '&' : '?';
+                  img.src = src + separator + 'cache_bust=' + Date.now();
+                }
+              });
+              // Notify app that upload happened
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'profileUpdated'
+              }));
+            }, 500);
+          }
+          return response;
+        });
+      };
+      
+      // Also intercept XHR for older APIs
+      var originalXHROpen = XMLHttpRequest.prototype.open;
+      var originalXHRSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this._url = url;
+        return originalXHROpen.apply(this, arguments);
+      };
+      XMLHttpRequest.prototype.send = function() {
+        var xhr = this;
+        var originalOnLoad = xhr.onload;
+        xhr.onload = function() {
+          if (xhr._url && (xhr._url.includes('profile') || xhr._url.includes('upload') || xhr._url.includes('avatar') || xhr._url.includes('picture'))) {
+            setTimeout(function() {
+              var images = document.querySelectorAll('img[src*="profile"], img[src*="avatar"], img[src*="user"], img.profile-image, img.avatar');
+              images.forEach(function(img) {
+                var src = img.src;
+                if (src) {
+                  var separator = src.includes('?') ? '&' : '?';
+                  img.src = src + separator + 'cache_bust=' + Date.now();
+                }
+              });
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'profileUpdated'
+              }));
+            }, 500);
+          }
+          if (originalOnLoad) originalOnLoad.apply(this, arguments);
+        };
+        return originalXHRSend.apply(this, arguments);
+      };
+      
       true;
     })();
   `;
@@ -356,6 +413,9 @@ function NativeWebViewScreen() {
           backToTopOpacity.value = withTiming(data.offsetY > 300 ? 1 : 0, {
             duration: 200,
           });
+        } else if (data.type === "profileUpdated") {
+          // Force reload the current page to show updated profile image
+          webViewRef.current?.reload();
         }
       } catch (e) {
         // Ignore non-JSON messages
@@ -411,6 +471,8 @@ function NativeWebViewScreen() {
         allowsFullscreenVideo={true}
         overScrollMode="never"
         scalesPageToFit={true}
+        cacheMode="LOAD_DEFAULT"
+        incognito={false}
         renderLoading={() => (
           <View
             style={[
