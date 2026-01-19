@@ -41,8 +41,8 @@ export default function RootStackNavigator() {
         name="WebView"
         component={WebViewScreen}
         options={{
+          ...transparentOptions,
           headerTitle: () => <HeaderTitle title="Health Staff Pros" />,
-          headerShown: false,
         }}
       />
       <Stack.Screen
