@@ -44,6 +44,8 @@ const WEB_URL = "https://healthstaffpros.com";
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function WebFallbackScreen() {
+  const navigation = useNavigation<NavigationProp>();
+
   return (
     <View style={webFallbackStyles.container}>
       <View style={webFallbackStyles.content}>
@@ -54,14 +56,24 @@ function WebFallbackScreen() {
         <Text style={webFallbackStyles.text}>
           This app is designed for iOS and Android devices. Please scan the QR code with Expo Go to use the app on your phone.
         </Text>
-        <Pressable
-          style={webFallbackStyles.button}
-          onPress={() => Linking.openURL(WEB_URL)}
-        >
-          <Text style={webFallbackStyles.buttonText}>
-            Visit healthstaffpros.com
-          </Text>
-        </Pressable>
+        <View style={webFallbackStyles.buttonRow}>
+          <Pressable
+            style={webFallbackStyles.button}
+            onPress={() => Linking.openURL(WEB_URL)}
+          >
+            <Text style={webFallbackStyles.buttonText}>
+              Visit Website
+            </Text>
+          </Pressable>
+          <Pressable
+            style={webFallbackStyles.buttonSecondary}
+            onPress={() => navigation.navigate("Features")}
+          >
+            <Text style={webFallbackStyles.buttonSecondaryText}>
+              View Features
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -94,6 +106,10 @@ const webFallbackStyles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 24,
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
   button: {
     backgroundColor: BrandColors.primary,
     paddingHorizontal: 24,
@@ -102,6 +118,17 @@ const webFallbackStyles = StyleSheet.create({
   },
   buttonText: {
     color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  buttonSecondary: {
+    backgroundColor: "#F0F0F0",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  buttonSecondaryText: {
+    color: BrandColors.primary,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -242,6 +269,9 @@ function NativeWebViewScreen() {
               <Feather name="chevron-right" size={24} color={theme.text} />
             </HeaderButton>
           ) : null}
+          <HeaderButton onPress={() => navigation.navigate("Features")}>
+            <Feather name="grid" size={22} color={BrandColors.primary} />
+          </HeaderButton>
           <HeaderButton onPress={() => navigation.navigate("Settings")}>
             <Feather name="settings" size={22} color={theme.text} />
           </HeaderButton>

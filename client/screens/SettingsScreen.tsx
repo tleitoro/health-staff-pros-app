@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as WebBrowser from "expo-web-browser";
@@ -19,6 +21,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing, BorderRadius } from "@/constants/theme";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 interface SettingsItemProps {
   icon: keyof typeof Feather.glyphMap;
@@ -133,6 +136,7 @@ export default function SettingsScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const appVersion = Constants.expoConfig?.version ?? "1.0.0";
 
   const handleClearCache = useCallback(() => {
@@ -204,6 +208,15 @@ export default function SettingsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        <SettingsSection title="NATIVE FEATURES">
+          <SettingsItem
+            icon="grid"
+            title="App Features"
+            subtitle="Biometric login, calendar sync, scanner & more"
+            onPress={() => navigation.navigate("Features")}
+          />
+        </SettingsSection>
+
         <SettingsSection title="CACHE & DATA">
           <SettingsItem
             icon="refresh-cw"
