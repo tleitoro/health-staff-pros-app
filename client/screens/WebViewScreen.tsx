@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { HeaderButton } from "@react-navigation/elements";
+import { HeaderButton, useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -28,8 +28,8 @@ import Animated, {
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import ThemedText from "@/components/ThemedText";
-import ThemedView from "@/components/ThemedView";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
 
 let WebView: any = null;
 let WebViewNavigation: any = null;
@@ -45,6 +45,21 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function WebFallbackScreen() {
   const navigation = useNavigation<NavigationProp>();
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <HeaderButton onPress={() => navigation.navigate("Features")}>
+            <Feather name="grid" size={22} color={BrandColors.primary} />
+          </HeaderButton>
+          <HeaderButton onPress={() => navigation.navigate("Settings")}>
+            <Feather name="settings" size={22} color="#1A1A1A" />
+          </HeaderButton>
+        </View>
+      ),
+    });
+  }, [navigation]);
 
   return (
     <View style={webFallbackStyles.container}>
@@ -145,6 +160,7 @@ export default function WebViewScreen() {
 function NativeWebViewScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const navigation = useNavigation<NavigationProp>();
   const webViewRef = useRef<typeof WebView>(null);
 
@@ -162,7 +178,7 @@ function NativeWebViewScreen() {
   const backToTopOpacity = useSharedValue(0);
 
   const handleNavigationStateChange = useCallback(
-    (navState: WebViewNavigation) => {
+    (navState: typeof WebViewNavigation) => {
       setCanGoBack(navState.canGoBack);
       setCanGoForward(navState.canGoForward);
       setCurrentUrl(navState.url);
@@ -353,7 +369,7 @@ function NativeWebViewScreen() {
       <Animated.View
         style={[
           styles.progressBar,
-          { backgroundColor: BrandColors.primary, top: insets.top },
+          { backgroundColor: BrandColors.primary, top: headerHeight },
           progressBarStyle,
         ]}
       />
@@ -361,7 +377,7 @@ function NativeWebViewScreen() {
       <WebView
         ref={webViewRef}
         source={{ uri: WEB_URL }}
-        style={[styles.webView, { marginTop: insets.top }]}
+        style={[styles.webView, { marginTop: headerHeight }]}
         onNavigationStateChange={handleNavigationStateChange}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
@@ -389,6 +405,12 @@ function NativeWebViewScreen() {
               : undefined
         }
         applicationNameForUserAgent="HealthStaffProsApp/1.0"
+        allowFileAccess={true}
+        allowFileAccessFromFileURLs={true}
+        allowUniversalAccessFromFileURLs={true}
+        allowsFullscreenVideo={true}
+        overScrollMode="never"
+        scalesPageToFit={true}
         renderLoading={() => (
           <View
             style={[
