@@ -172,6 +172,7 @@ function NativeWebViewScreen() {
   const [currentUrl, setCurrentUrl] = useState(WEB_URL);
   const [refreshing, setRefreshing] = useState(false);
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [webViewKey, setWebViewKey] = useState(1);
 
   const progressWidth = useSharedValue(0);
   const progressOpacity = useSharedValue(1);
@@ -384,23 +385,8 @@ function NativeWebViewScreen() {
             duration: 200,
           });
         } else if (data.type === "profileUpdated") {
-          // Clear cache and force a hard reload to show updated profile image
-          if (webViewRef.current) {
-            // First clear the cache by injecting JavaScript
-            webViewRef.current.injectJavaScript(`
-              // Clear image cache by forcing reload with cache bust
-              document.querySelectorAll('img').forEach(function(img) {
-                var src = img.src;
-                if (src && !src.includes('data:')) {
-                  var newSrc = src.split('?')[0] + '?t=' + Date.now();
-                  img.src = newSrc;
-                }
-              });
-              // Force location reload
-              window.location.reload(true);
-              true;
-            `);
-          }
+          // Force remount WebView to clear all caches including image cache
+          setWebViewKey(prev => prev + 1);
         }
       } catch (e) {
         // Ignore non-JSON messages
@@ -420,6 +406,7 @@ function NativeWebViewScreen() {
       />
 
       <WebView
+        key={webViewKey}
         ref={webViewRef}
         source={{ uri: WEB_URL }}
         style={[styles.webView, { marginTop: headerHeight }]}
