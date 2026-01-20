@@ -344,62 +344,32 @@ function NativeWebViewScreen() {
         }));
       });
       
-      // Listen for profile picture upload success and bust cache
-      var originalFetch = window.fetch;
-      window.fetch = function() {
-        return originalFetch.apply(this, arguments).then(function(response) {
-          var url = arguments[0];
-          if (typeof url === 'string' && (url.includes('profile') || url.includes('upload') || url.includes('avatar') || url.includes('picture'))) {
-            // After upload API call, bust image caches
-            setTimeout(function() {
-              var images = document.querySelectorAll('img[src*="profile"], img[src*="avatar"], img[src*="user"], img.profile-image, img.avatar');
-              images.forEach(function(img) {
-                var src = img.src;
-                if (src) {
-                  var separator = src.includes('?') ? '&' : '?';
-                  img.src = src + separator + 'cache_bust=' + Date.now();
+      // Watch for success toast/notification about profile picture update
+      var profileUpdateDetected = false;
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          mutation.addedNodes.forEach(function(node) {
+            if (node.nodeType === 1) {
+              var text = node.textContent || '';
+              if ((text.toLowerCase().includes('profile picture') && text.toLowerCase().includes('updated')) ||
+                  (text.toLowerCase().includes('profile') && text.toLowerCase().includes('success')) ||
+                  (text.toLowerCase().includes('photo') && text.toLowerCase().includes('updated'))) {
+                if (!profileUpdateDetected) {
+                  profileUpdateDetected = true;
+                  // Notify app to reload after a delay
+                  setTimeout(function() {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'profileUpdated'
+                    }));
+                    profileUpdateDetected = false;
+                  }, 1500);
                 }
-              });
-              // Notify app that upload happened
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'profileUpdated'
-              }));
-            }, 500);
-          }
-          return response;
+              }
+            }
+          });
         });
-      };
-      
-      // Also intercept XHR for older APIs
-      var originalXHROpen = XMLHttpRequest.prototype.open;
-      var originalXHRSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function(method, url) {
-        this._url = url;
-        return originalXHROpen.apply(this, arguments);
-      };
-      XMLHttpRequest.prototype.send = function() {
-        var xhr = this;
-        var originalOnLoad = xhr.onload;
-        xhr.onload = function() {
-          if (xhr._url && (xhr._url.includes('profile') || xhr._url.includes('upload') || xhr._url.includes('avatar') || xhr._url.includes('picture'))) {
-            setTimeout(function() {
-              var images = document.querySelectorAll('img[src*="profile"], img[src*="avatar"], img[src*="user"], img.profile-image, img.avatar');
-              images.forEach(function(img) {
-                var src = img.src;
-                if (src) {
-                  var separator = src.includes('?') ? '&' : '?';
-                  img.src = src + separator + 'cache_bust=' + Date.now();
-                }
-              });
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'profileUpdated'
-              }));
-            }, 500);
-          }
-          if (originalOnLoad) originalOnLoad.apply(this, arguments);
-        };
-        return originalXHRSend.apply(this, arguments);
-      };
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
       
       true;
     })();
