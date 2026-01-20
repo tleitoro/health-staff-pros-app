@@ -384,8 +384,23 @@ function NativeWebViewScreen() {
             duration: 200,
           });
         } else if (data.type === "profileUpdated") {
-          // Force reload the current page to show updated profile image
-          webViewRef.current?.reload();
+          // Clear cache and force a hard reload to show updated profile image
+          if (webViewRef.current) {
+            // First clear the cache by injecting JavaScript
+            webViewRef.current.injectJavaScript(`
+              // Clear image cache by forcing reload with cache bust
+              document.querySelectorAll('img').forEach(function(img) {
+                var src = img.src;
+                if (src && !src.includes('data:')) {
+                  var newSrc = src.split('?')[0] + '?t=' + Date.now();
+                  img.src = newSrc;
+                }
+              });
+              // Force location reload
+              window.location.reload(true);
+              true;
+            `);
+          }
         }
       } catch (e) {
         // Ignore non-JSON messages
