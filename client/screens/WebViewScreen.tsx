@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { HeaderButton, useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -49,19 +48,6 @@ const WEB_URL = "https://healthstaffpros.com";
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function WebFallbackScreen() {
-  const navigation = useNavigation<NavigationProp>();
-
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => null,
-      headerRight: () => (
-        <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
-          <Feather name="grid" size={22} color={BrandColors.primary} />
-        </HeaderButton>
-      ),
-    });
-  }, [navigation]);
-
   return (
     <View style={webFallbackStyles.container}>
       <View style={webFallbackStyles.content}>
@@ -72,24 +58,14 @@ function WebFallbackScreen() {
         <Text style={webFallbackStyles.text}>
           This app is designed for iOS and Android devices. Please scan the QR code with Expo Go to use the app on your phone.
         </Text>
-        <View style={webFallbackStyles.buttonRow}>
-          <Pressable
-            style={webFallbackStyles.button}
-            onPress={() => Linking.openURL(WEB_URL)}
-          >
-            <Text style={webFallbackStyles.buttonText}>
-              Visit Website
-            </Text>
-          </Pressable>
-          <Pressable
-            style={webFallbackStyles.buttonSecondary}
-            onPress={() => navigation.navigate("Features")}
-          >
-            <Text style={webFallbackStyles.buttonSecondaryText}>
-              View Features
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable
+          style={webFallbackStyles.button}
+          onPress={() => Linking.openURL(WEB_URL)}
+        >
+          <Text style={webFallbackStyles.buttonText}>
+            Visit Website
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -122,10 +98,6 @@ const webFallbackStyles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 24,
   },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
   button: {
     backgroundColor: BrandColors.primary,
     paddingHorizontal: 24,
@@ -134,17 +106,6 @@ const webFallbackStyles = StyleSheet.create({
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonSecondary: {
-    backgroundColor: "#F0F0F0",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  buttonSecondaryText: {
-    color: BrandColors.primary,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -161,7 +122,6 @@ export default function WebViewScreen() {
 function NativeWebViewScreen() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const navigation = useNavigation<NavigationProp>();
   const webViewRef = useRef<typeof WebView>(null);
 
@@ -271,17 +231,6 @@ function NativeWebViewScreen() {
       },
     ],
   }));
-
-  React.useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => null,
-      headerRight: () => (
-        <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
-          <Feather name="grid" size={22} color={BrandColors.primary} />
-        </HeaderButton>
-      ),
-    });
-  }, [navigation]);
 
   const injectedJavaScriptBeforeContentLoaded = `
     (function() {
@@ -520,7 +469,7 @@ function NativeWebViewScreen() {
       <Animated.View
         style={[
           styles.progressBar,
-          { backgroundColor: BrandColors.primary, top: headerHeight },
+          { backgroundColor: BrandColors.primary, top: insets.top },
           progressBarStyle,
         ]}
       />
@@ -529,7 +478,7 @@ function NativeWebViewScreen() {
         key={webViewKey}
         ref={webViewRef}
         source={{ uri: WEB_URL }}
-        style={[styles.webView, { marginTop: headerHeight }]}
+        style={[styles.webView, { marginTop: insets.top }]}
         onNavigationStateChange={handleNavigationStateChange}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
