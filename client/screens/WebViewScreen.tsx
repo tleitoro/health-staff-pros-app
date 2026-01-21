@@ -53,15 +53,11 @@ function WebFallbackScreen() {
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: () => null,
       headerRight: () => (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
-          <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
-            <Feather name="grid" size={22} color={BrandColors.primary} />
-          </HeaderButton>
-          <HeaderButton onPress={() => navigation.navigate("Settings")} testID="header-settings-button">
-            <Feather name="settings" size={22} color="#1A1A1A" />
-          </HeaderButton>
-        </View>
+        <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
+          <Feather name="grid" size={22} color={BrandColors.primary} />
+        </HeaderButton>
       ),
     });
   }, [navigation]);
@@ -278,36 +274,14 @@ function NativeWebViewScreen() {
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      headerLeft: () =>
-        canGoBack ? (
-          <HeaderButton onPress={handleGoBack} testID="header-back-button">
-            <Feather name="chevron-left" size={24} color={theme.text} />
-          </HeaderButton>
-        ) : null,
+      headerLeft: () => null,
       headerRight: () => (
-        <View style={styles.headerRightContainer}>
-          {canGoForward ? (
-            <HeaderButton onPress={handleGoForward} testID="header-forward-button">
-              <Feather name="chevron-right" size={24} color={theme.text} />
-            </HeaderButton>
-          ) : null}
-          <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
-            <Feather name="grid" size={22} color={BrandColors.primary} />
-          </HeaderButton>
-          <HeaderButton onPress={() => navigation.navigate("Settings")} testID="header-settings-button">
-            <Feather name="settings" size={22} color={theme.text} />
-          </HeaderButton>
-        </View>
+        <HeaderButton onPress={() => navigation.navigate("Features")} testID="header-features-button">
+          <Feather name="grid" size={22} color={BrandColors.primary} />
+        </HeaderButton>
       ),
     });
-  }, [
-    navigation,
-    canGoBack,
-    canGoForward,
-    handleGoBack,
-    handleGoForward,
-    theme.text,
-  ]);
+  }, [navigation]);
 
   const injectedJavaScriptBeforeContentLoaded = `
     (function() {
@@ -644,11 +618,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-  },
-  headerRightContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.lg,
   },
   backToTopButton: {
     position: "absolute",
