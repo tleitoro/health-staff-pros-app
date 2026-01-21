@@ -9,6 +9,7 @@ import {
   Pressable,
   Linking,
   Text,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -16,6 +17,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { HeaderButton, useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
+import * as SecureStore from "expo-secure-store";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -30,6 +33,8 @@ import { BrandColors, Spacing } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+
+const BIOMETRIC_CREDENTIALS_KEY = "healthstaffpros_biometric_credentials";
 
 let WebView: any = null;
 let WebViewNavigation: any = null;
@@ -308,7 +313,32 @@ function NativeWebViewScreen() {
     (function() {
       // Mark this as running inside the native app - runs BEFORE page content loads
       window.isHealthStaffProsApp = true;
-      window.HealthStaffProsApp = { version: '1.0', platform: '${Platform.OS}' };
+      window.HealthStaffProsApp = { 
+        version: '1.0', 
+        platform: '${Platform.OS}',
+        hasBiometricBridge: true
+      };
+      
+      // Expose biometric bridge functions for the website to call
+      window.requestBiometricLogin = function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'requestBiometricLogin' }));
+      };
+      
+      window.saveBiometricCredentials = function(email, password) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+          type: 'saveBiometricCredentials', 
+          email: email, 
+          password: password 
+        }));
+      };
+      
+      window.clearBiometricCredentials = function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'clearBiometricCredentials' }));
+      };
+      
+      window.checkBiometricAvailable = function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'checkBiometricAvailable' }));
+      };
       
       // Prevent beforeinstallprompt event early
       window.addEventListener('beforeinstallprompt', function(e) {
@@ -376,6 +406,98 @@ function NativeWebViewScreen() {
     })();
   `;
 
+  const handleBiometricLogin = useCallback(async () => {
+    try {
+      // Check if biometrics are available
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      
+      if (!hasHardware || !isEnrolled) {
+        webViewRef.current?.injectJavaScript(`
+          if (window.onBiometricLoginResult) {
+            window.onBiometricLoginResult(false, null, null, 'Biometric authentication is not available on this device');
+          }
+          true;
+        `);
+        return;
+      }
+
+      // Check if we have stored credentials
+      const storedCredentials = await SecureStore.getItemAsync(BIOMETRIC_CREDENTIALS_KEY);
+      
+      if (!storedCredentials) {
+        webViewRef.current?.injectJavaScript(`
+          if (window.onBiometricLoginResult) {
+            window.onBiometricLoginResult(false, null, null, 'No saved credentials. Please log in with email first, then enable biometric login in settings.');
+          }
+          true;
+        `);
+        return;
+      }
+
+      // Perform biometric authentication
+      const authResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Sign in to Health Staff Pros",
+        fallbackLabel: "Use password",
+        disableDeviceFallback: false,
+      });
+
+      if (authResult.success) {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        const credentials = JSON.parse(storedCredentials);
+        webViewRef.current?.injectJavaScript(`
+          if (window.onBiometricLoginResult) {
+            window.onBiometricLoginResult(true, '${credentials.email}', '${credentials.password}', null);
+          }
+          true;
+        `);
+      } else {
+        webViewRef.current?.injectJavaScript(`
+          if (window.onBiometricLoginResult) {
+            window.onBiometricLoginResult(false, null, null, 'Authentication cancelled or failed');
+          }
+          true;
+        `);
+      }
+    } catch (error) {
+      console.error("Biometric login error:", error);
+      webViewRef.current?.injectJavaScript(`
+        if (window.onBiometricLoginResult) {
+          window.onBiometricLoginResult(false, null, null, 'An error occurred during authentication');
+        }
+        true;
+      `);
+    }
+  }, []);
+
+  const handleSaveBiometricCredentials = useCallback(async (email: string, password: string) => {
+    try {
+      await SecureStore.setItemAsync(
+        BIOMETRIC_CREDENTIALS_KEY,
+        JSON.stringify({ email, password })
+      );
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      webViewRef.current?.injectJavaScript(`
+        if (window.onBiometricCredentialsSaved) {
+          window.onBiometricCredentialsSaved(true, null);
+        }
+        true;
+      `);
+    } catch (error) {
+      console.error("Save credentials error:", error);
+      webViewRef.current?.injectJavaScript(`
+        if (window.onBiometricCredentialsSaved) {
+          window.onBiometricCredentialsSaved(false, 'Failed to save credentials');
+        }
+        true;
+      `);
+    }
+  }, []);
+
   const handleMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
       try {
@@ -387,12 +509,36 @@ function NativeWebViewScreen() {
         } else if (data.type === "profileUpdated") {
           // Force remount WebView to clear all caches including image cache
           setWebViewKey(prev => prev + 1);
+        } else if (data.type === "requestBiometricLogin") {
+          // Handle biometric login request from website
+          handleBiometricLogin();
+        } else if (data.type === "saveBiometricCredentials") {
+          // Save credentials for biometric login
+          if (data.email && data.password) {
+            handleSaveBiometricCredentials(data.email, data.password);
+          }
+        } else if (data.type === "clearBiometricCredentials") {
+          // Clear stored biometric credentials
+          SecureStore.deleteItemAsync(BIOMETRIC_CREDENTIALS_KEY);
+        } else if (data.type === "checkBiometricAvailable") {
+          // Check if biometric is available and has stored credentials
+          (async () => {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+            const storedCredentials = await SecureStore.getItemAsync(BIOMETRIC_CREDENTIALS_KEY);
+            webViewRef.current?.injectJavaScript(`
+              if (window.onBiometricAvailabilityResult) {
+                window.onBiometricAvailabilityResult(${hasHardware && isEnrolled}, ${!!storedCredentials});
+              }
+              true;
+            `);
+          })();
         }
       } catch (e) {
         // Ignore non-JSON messages
       }
     },
-    [backToTopOpacity]
+    [backToTopOpacity, handleBiometricLogin, handleSaveBiometricCredentials]
   );
 
   return (
