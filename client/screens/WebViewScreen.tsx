@@ -263,6 +263,19 @@ function NativeWebViewScreen() {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'checkBiometricAvailable' }));
       };
       
+      // Override window.open to handle external URLs (like PDFs) in device browser
+      var originalWindowOpen = window.open;
+      window.open = function(url, target, features) {
+        if (url && window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ 
+            type: 'openExternalUrl', 
+            url: url 
+          }));
+          return null;
+        }
+        return originalWindowOpen ? originalWindowOpen.call(window, url, target, features) : null;
+      };
+      
       // Prevent beforeinstallprompt event early
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
