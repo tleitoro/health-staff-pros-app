@@ -269,9 +269,13 @@ function NativeWebViewScreen() {
       var originalWindowOpen = window.open;
       window.open = function(url, target, features) {
         if (url && window.ReactNativeWebView) {
+          var isPdf = url.toLowerCase().indexOf('.pdf') > -1;
+          var fileName = isPdf ? url.split('/').pop() || 'document.pdf' : null;
           window.ReactNativeWebView.postMessage(JSON.stringify({ 
-            type: 'openExternalUrl', 
-            url: url 
+            type: isPdf ? 'shareFile' : 'openExternalUrl', 
+            url: url,
+            fileName: fileName,
+            mimeType: isPdf ? 'application/pdf' : null
           }));
           return null;
         }
@@ -471,10 +475,35 @@ function NativeWebViewScreen() {
               true;
             `);
           })();
-        } else if (data.type === "openExternalUrl") {
-          // Open external URLs (like PDFs) in the device's default browser
+        } else if (data.type === "openExternalUrl" || data.type === "openExternalURL" || data.type === "openUrl" || data.type === "openURL") {
+          // Open external URLs - for PDFs, download and share; for others, open in browser
           if (data.url) {
-            Linking.openURL(data.url);
+            const url = data.url;
+            const isPdf = url.endsWith('.pdf') || data.fileName?.endsWith('.pdf') || data.mimeType === 'application/pdf';
+            
+            if (isPdf) {
+              // Handle PDF with share sheet
+              (async () => {
+                try {
+                  const fileName = data.fileName || `timesheet_${Date.now()}.pdf`;
+                  const localUri = `${FileSystem.documentDirectory}${fileName}`;
+                  const downloadResult = await FileSystem.downloadAsync(url, localUri);
+                  
+                  if (downloadResult.status === 200 && await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(downloadResult.uri, {
+                      mimeType: 'application/pdf',
+                      dialogTitle: 'View Timesheet',
+                    });
+                  } else {
+                    Linking.openURL(url);
+                  }
+                } catch {
+                  Linking.openURL(url);
+                }
+              })();
+            } else {
+              Linking.openURL(url);
+            }
           }
         } else if (data.type === "shareFile") {
           // Handle file sharing (timesheets, documents) via native share sheet

@@ -1,0 +1,77 @@
+The issue is with the native Expo mobile app. The app needs to handle the shareFile message type to download and share PDFs. Let me check the native app code and fix the message handling.
+
+The native app code lives separately (outside this repo). The web app is sending shareFile messages, but the native Expo app needs to handle them. Since the native app code isn't in this repository, I need to provide you with the code that needs to be added to your Expo app.
+
+However, I can create a simpler solution that works without modifying the native app - by opening PDFs in a way that the WebView can handle natively.
+
+The issue is that the native Expo app isn't handling the shareFile message from the WebView. I'll update the approach to use a method that works without requiring changes to the native app - by using the openURL message type which the native app likely already supports, or by using a direct link approach.
+
+The problem is clear: the web app sends a shareFile message to the native app, but if the native Expo app doesn't have a handler for this message type, nothing happens. Let me update the approach to use the openURL message type which is more commonly implemented, or fall back to a direct link that the WebView can handle.
+
+The issue is that the native Expo app may not have handlers for any of these message types. I need to check what message handlers are actually implemented in the native app. But since I don't have access to the native app source code, let me provide an alternative solution that uses a built-in WebView capability - the window.open with a special URL scheme or the Linking API.
+
+Let me check if there are any existing message handlers documented in the codebase:
+
+The core issue is that the native Expo app needs to handle the message types being sent from the WebView. Since the native app code isn't in this repository, I'll need to provide you with the handler code that needs to be added to your Expo app.
+
+However, I can also create an alternative approach that works in more scenarios - by using a PDF viewer within the WebView itself instead of trying to send messages to the native app.
+
+Let me create a robust solution that will work even if the native app doesn't handle the messages:
+
+The real issue is that the native Expo app needs to be updated to handle these message types. Let me check if there's any documentation about what message types the native app currently handles, and provide you with the code that needs to be added to the Expo app.
+
+Do you have access to the Expo mobile app's source code? I need to add a handler for PDF viewing/downloading. The code that handles messages from the WebView needs to be updated to support opening PDFs.
+
+Yes, I can update the Expo app code
+Great! Please share the Expo app's main file that handles WebView messages (usually App.tsx or wherever you have the WebView onMessage handler). I'll provide you with the code to add PDF download and sharing support.
+
+In the meantime, here's what you'll need to add to your Expo app. The handler needs to:
+
+Install required packages: expo-file-system, expo-sharing, and expo-linking
+Handle the openExternalURL message type
+Here's the code snippet to add to your WebView's onMessage handler in the Expo app:
+
+// Add these imports at the top of your App.tsx
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as Linking from 'expo-linking';
+// In your WebView onMessage handler, add this case:
+const handleMessage = async (event) => {
+  try {
+    const data = JSON.parse(event.nativeEvent.data);
+    
+    switch (data.type) {
+      case 'openExternalURL':
+        // For PDFs, download and share
+        if (data.url && (data.url.endsWith('.pdf') || data.fileName?.endsWith('.pdf'))) {
+          const fileName = data.fileName || 'timesheet.pdf';
+          const fileUri = FileSystem.documentDirectory + fileName;
+          
+          // Download the file
+          const downloadResult = await FileSystem.downloadAsync(data.url, fileUri);
+          
+          if (downloadResult.status === 200) {
+            // Check if sharing is available
+            if (await Sharing.isAvailableAsync()) {
+              await Sharing.shareAsync(downloadResult.uri, {
+                mimeType: 'application/pdf',
+                dialogTitle: 'View Timesheet'
+              });
+            } else {
+              // Fallback to opening in browser
+              await Linking.openURL(data.url);
+            }
+          }
+        } else {
+          // For non-PDF URLs, open in external browser
+          await Linking.openURL(data.url);
+        }
+        break;
+        
+      // ... your other message handlers
+    }
+  } catch (error) {
+    console.error('Error handling WebView message:', error);
+  }
+};
+Could you paste the relevant part of your Expo app code so I can help you integrate this properly?
