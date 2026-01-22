@@ -20,6 +20,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import * as Calendar from "expo-calendar";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -558,6 +559,59 @@ function NativeWebViewScreen() {
           if (data.url) {
             Linking.openURL(data.url);
           }
+        } else if (data.type === "addToCalendar") {
+          // Handle calendar event from website schedule page
+          (async () => {
+            try {
+              const { event } = data;
+              if (!event) return;
+
+              const { status } = await Calendar.requestCalendarPermissionsAsync();
+              if (status !== "granted") {
+                Alert.alert(
+                  "Calendar Permission Required",
+                  "Please enable calendar access to add shifts to your calendar.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Open Settings",
+                      onPress: () => {
+                        if (Platform.OS !== "web") {
+                          try { Linking.openSettings(); } catch {}
+                        }
+                      },
+                    },
+                  ]
+                );
+                return;
+              }
+
+              const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+              const writableCalendars = calendars.filter(c => c.allowsModifications);
+              const defaultCalendar = writableCalendars.find(c => c.isPrimary) || writableCalendars[0];
+
+              if (!defaultCalendar) {
+                Alert.alert("No Calendar", "No writable calendar found on this device.");
+                return;
+              }
+
+              await Calendar.createEventAsync(defaultCalendar.id, {
+                title: event.title || "Health Staff Pros Shift",
+                startDate: new Date(event.startDate),
+                endDate: new Date(event.endDate),
+                location: event.location || "",
+                notes: event.notes || "Scheduled via Health Staff Pros app",
+                alarms: [{ relativeOffset: -30 }],
+              });
+
+              if (Platform.OS !== "web") {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+              Alert.alert("Added to Calendar", `"${event.title}" has been added to your calendar.`);
+            } catch (error) {
+              Alert.alert("Error", "Could not add event to calendar. Please try again.");
+            }
+          })();
         }
       } catch (e) {
         // Ignore non-JSON messages

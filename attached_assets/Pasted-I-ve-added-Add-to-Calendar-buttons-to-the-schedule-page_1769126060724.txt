@@ -1,0 +1,71 @@
+I've added "Add to Calendar" buttons to the schedule pages. Now you need to add the handler in your Expo app. Here's the complete handler code you need to add to your WebView's onMessage function:
+
+// Required imports - add at the top of your file
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as Linking from 'expo-linking';
+import * as Calendar from 'expo-calendar';
+// In your WebView onMessage handler:
+const handleMessage = async (event) => {
+  try {
+    const data = JSON.parse(event.nativeEvent.data);
+    console.log('Received message from WebView:', data.type);
+    
+    switch (data.type) {
+      // PDF and External URL handling
+      case 'openExternalURL':
+        if (data.url && (data.url.includes('.pdf') || data.fileName?.endsWith('.pdf'))) {
+          const fileName = data.fileName || 'timesheet.pdf';
+          const fileUri = FileSystem.documentDirectory + fileName;
+          
+          try {
+            const downloadResult = await FileSystem.downloadAsync(data.url, fileUri);
+            if (downloadResult.status === 200 && await Sharing.isAvailableAsync()) {
+              await Sharing.shareAsync(downloadResult.uri, {
+                mimeType: 'application/pdf',
+                dialogTitle: 'View Timesheet'
+              });
+            } else {
+              await Linking.openURL(data.url);
+            }
+          } catch (err) {
+            await Linking.openURL(data.url);
+          }
+        } else if (data.url) {
+          await Linking.openURL(data.url);
+        }
+        break;
+        
+      // Calendar event handling
+      case 'addToCalendar':
+        const { event } = data;
+        if (event) {
+          const { status } = await Calendar.requestCalendarPermissionsAsync();
+          if (status === 'granted') {
+            const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+            const defaultCalendar = calendars.find(c => c.isPrimary) || calendars[0];
+            
+            if (defaultCalendar) {
+              await Calendar.createEventAsync(defaultCalendar.id, {
+                title: event.title,
+                startDate: new Date(event.startDate),
+                endDate: new Date(event.endDate),
+                location: event.location || '',
+                notes: event.notes || '',
+                alarms: [{ relativeOffset: -30 }] // 30 min reminder
+              });
+              // Optionally show a success alert
+            }
+          }
+        }
+        break;
+        
+      // ... your other existing handlers
+    }
+  } catch (error) {
+    console.error('Error handling WebView message:', error);
+  }
+};
+Also make sure you have these packages installed in your Expo project:
+
+npx expo install expo-file-system expo-sharing expo-linking expo-calendar
