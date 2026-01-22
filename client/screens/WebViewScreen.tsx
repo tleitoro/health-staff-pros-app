@@ -481,10 +481,16 @@ function NativeWebViewScreen() {
           (async () => {
             try {
               const { url, fileName, mimeType, title } = data;
-              if (!url || !fileName) return;
+              if (!url) {
+                Alert.alert("Error", "No file URL provided");
+                return;
+              }
+              
+              // Generate filename if not provided
+              const safeFileName = fileName || `timesheet_${Date.now()}.pdf`;
               
               // Download the file to local cache
-              const localUri = `${FileSystem.documentDirectory}${fileName}`;
+              const localUri = `${FileSystem.documentDirectory}${safeFileName}`;
               const downloadResult = await FileSystem.downloadAsync(url, localUri);
               
               if (downloadResult.status === 200) {
@@ -494,19 +500,35 @@ function NativeWebViewScreen() {
                 if (isAvailable) {
                   await Sharing.shareAsync(downloadResult.uri, {
                     mimeType: mimeType || "application/pdf",
-                    dialogTitle: title || "Share File",
+                    dialogTitle: title || "Share Timesheet",
                   });
                 } else {
                   // Fallback to opening in browser
                   Linking.openURL(url);
                 }
               } else {
-                Alert.alert("Download Failed", "Could not download the file. Please try again.");
+                // If download fails, try opening in browser as fallback
+                Alert.alert(
+                  "Download Issue",
+                  "Opening in browser instead...",
+                  [{ text: "OK", onPress: () => Linking.openURL(url) }]
+                );
               }
-            } catch (error) {
-              Alert.alert("Error", "Something went wrong. Please try again.");
+            } catch (error: any) {
+              // Fallback to opening in browser
+              const url = data.url;
+              if (url) {
+                Linking.openURL(url);
+              } else {
+                Alert.alert("Error", "Could not open the file.");
+              }
             }
           })();
+        } else if (data.type === "openPdf" || data.type === "viewTimesheet") {
+          // Alternative message types - open directly in browser
+          if (data.url) {
+            Linking.openURL(data.url);
+          }
         }
       } catch (e) {
         // Ignore non-JSON messages
