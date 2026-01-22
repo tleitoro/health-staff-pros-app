@@ -456,6 +456,11 @@ function NativeWebViewScreen() {
               true;
             `);
           })();
+        } else if (data.type === "openExternalUrl") {
+          // Open external URLs (like PDFs) in the device's default browser
+          if (data.url) {
+            Linking.openURL(data.url);
+          }
         }
       } catch (e) {
         // Ignore non-JSON messages
