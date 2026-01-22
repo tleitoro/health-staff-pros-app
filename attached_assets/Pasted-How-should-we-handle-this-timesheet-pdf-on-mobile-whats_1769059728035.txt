@@ -1,0 +1,78 @@
+How should we handle this timesheet pdf on mobile whats the best way or standard or standard of practice.
+
+Great question! Here are the standard approaches for handling PDFs on mobile:
+
+Option 1: Open in External Browser (Current approach)
+
+Opens Safari/Chrome to view the PDF
+User can save/share from browser
+Simple but takes user out of the app
+Option 2: In-App PDF Viewer (Best UX)
+
+Use a native library like react-native-pdf or expo-sharing
+PDF displays within the app
+User stays in the app experience
+Option 3: Share Sheet (Most Flexible)
+
+Download the PDF, then show iOS/Android share sheet
+User can save to Files, AirDrop, email, print, etc.
+Very native-feeling experience
+My Recommendation for HealthStaff Pros:
+
+For timesheets, I'd suggest Option 3 (Share Sheet) because:
+
+Healthcare professionals often need to save timesheets for records
+They may need to email timesheets to supervisors
+It's the most iOS/Android-native experience
+Keeps users in your app
+This would require updating the React Native app to handle a shareFile message type and use expo-sharing or react-native-share.
+
+Would you like me to:
+
+Keep the current external browser approach (simplest)
+Implement the share sheet approach (requires native app update)
+Implement sharesheet approach
+
+I've updated the web app to send shareFile messages. Now the React Native app needs to handle this. Here's the code to add to your native app's WebView onMessage handler:
+
+// In your React Native app, add these imports:
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+// In your WebView onMessage handler:
+const handleMessage = async (event) => {
+  try {
+    const data = JSON.parse(event.nativeEvent.data);
+    
+    if (data.type === 'shareFile') {
+      const { url, fileName, mimeType } = data;
+      
+      // Download the file to local cache
+      const localUri = FileSystem.cacheDirectory + fileName;
+      
+      const downloadResult = await FileSystem.downloadAsync(url, localUri);
+      
+      if (downloadResult.status === 200) {
+        // Check if sharing is available
+        const isAvailable = await Sharing.isAvailableAsync();
+        
+        if (isAvailable) {
+          await Sharing.shareAsync(downloadResult.uri, {
+            mimeType: mimeType || 'application/pdf',
+            dialogTitle: data.title || 'Share File'
+          });
+        } else {
+          Alert.alert('Sharing not available', 'Unable to share on this device');
+        }
+      } else {
+        Alert.alert('Download Failed', 'Could not download the file');
+      }
+    }
+    
+    // ... handle other message types
+  } catch (error) {
+    console.error('Error handling message:', error);
+  }
+};
+You'll also need to install the Expo packages if not already installed:
+
+npx expo install expo-file-system expo-sharing

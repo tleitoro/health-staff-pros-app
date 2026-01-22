@@ -18,6 +18,8 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as SecureStore from "expo-secure-store";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -474,6 +476,37 @@ function NativeWebViewScreen() {
           if (data.url) {
             Linking.openURL(data.url);
           }
+        } else if (data.type === "shareFile") {
+          // Handle file sharing (timesheets, documents) via native share sheet
+          (async () => {
+            try {
+              const { url, fileName, mimeType, title } = data;
+              if (!url || !fileName) return;
+              
+              // Download the file to local cache
+              const localUri = `${FileSystem.documentDirectory}${fileName}`;
+              const downloadResult = await FileSystem.downloadAsync(url, localUri);
+              
+              if (downloadResult.status === 200) {
+                // Check if sharing is available
+                const isAvailable = await Sharing.isAvailableAsync();
+                
+                if (isAvailable) {
+                  await Sharing.shareAsync(downloadResult.uri, {
+                    mimeType: mimeType || "application/pdf",
+                    dialogTitle: title || "Share File",
+                  });
+                } else {
+                  // Fallback to opening in browser
+                  Linking.openURL(url);
+                }
+              } else {
+                Alert.alert("Download Failed", "Could not download the file. Please try again.");
+              }
+            } catch (error) {
+              Alert.alert("Error", "Something went wrong. Please try again.");
+            }
+          })();
         }
       } catch (e) {
         // Ignore non-JSON messages
