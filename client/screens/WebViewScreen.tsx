@@ -858,16 +858,40 @@ function NativeWebViewScreen() {
         } else if (data.type === "sendTestNotification") {
           // Send a local test notification
           (async () => {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: "Health Staff Pros",
-                body: data.message || "Test notification from Health Staff Pros",
-                sound: true,
-              },
-              trigger: null,
-            });
-            if (Platform.OS !== "web") {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            try {
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: "Health Staff Pros",
+                  body: data.message || "Test notification from Health Staff Pros",
+                  sound: true,
+                },
+                trigger: null,
+              });
+              if (Platform.OS !== "web") {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+              // Notify website that notification was sent
+              if (webViewRef.current) {
+                webViewRef.current.injectJavaScript(`
+                  if (window.onTestNotificationSent) {
+                    window.onTestNotificationSent(true, null);
+                  }
+                  window.dispatchEvent(new CustomEvent('testNotificationSent', { detail: { success: true } }));
+                  true;
+                `);
+              }
+            } catch (error: any) {
+              console.error('Test notification error:', error);
+              // Notify website of error
+              if (webViewRef.current) {
+                webViewRef.current.injectJavaScript(`
+                  if (window.onTestNotificationSent) {
+                    window.onTestNotificationSent(false, '${error.message || "Failed to send notification"}');
+                  }
+                  window.dispatchEvent(new CustomEvent('testNotificationSent', { detail: { success: false, error: '${error.message || "Failed"}' } }));
+                  true;
+                `);
+              }
             }
           })();
         } else if (data.type === "cacheSchedule") {
