@@ -11,9 +11,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -27,7 +29,16 @@ interface SelectedContact {
   email?: string;
 }
 
+type ContactPickerRouteParams = {
+  ContactPicker: {
+    forReferral?: boolean;
+  };
+};
+
 export default function ContactPickerScreen() {
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<ContactPickerRouteParams, 'ContactPicker'>>();
+  const forReferral = route.params?.forReferral || false;
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -97,6 +108,25 @@ export default function ContactPickerScreen() {
           email: contact.emails?.[0]?.email,
         };
 
+        // If opened for web referral, save contact and navigate back
+        if (forReferral) {
+          const contactData = {
+            firstName: contact.firstName || contact.name?.split(' ')[0] || '',
+            lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
+            emails: contact.emails?.map(e => ({ email: e.email })) || [],
+            phoneNumbers: contact.phoneNumbers?.map(p => ({ number: p.number })) || [],
+          };
+          
+          await AsyncStorage.setItem('selectedContact', JSON.stringify(contactData));
+          
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          
+          navigation.goBack();
+          return;
+        }
+
         const exists = selectedContacts.some((c) => c.id === newContact.id);
         if (!exists) {
           setSelectedContacts((prev) => [...prev, newContact]);
@@ -111,7 +141,7 @@ export default function ContactPickerScreen() {
       console.error("Error picking contact:", error);
       Alert.alert("Error", "Could not access contacts. Please try again.");
     }
-  }, [selectedContacts]);
+  }, [selectedContacts, forReferral, navigation]);
 
   const removeContact = useCallback((id: string) => {
     if (Platform.OS !== "web") {

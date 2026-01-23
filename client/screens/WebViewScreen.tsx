@@ -25,6 +25,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Contacts from "expo-contacts";
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -173,7 +174,7 @@ function NativeWebViewScreen() {
     };
   }, []);
 
-  // Check for scanned documents when screen gains focus
+  // Check for scanned documents and selected contacts when screen gains focus
   useFocusEffect(
     useCallback(() => {
       const checkForScannedDocument = async () => {
@@ -201,7 +202,33 @@ function NativeWebViewScreen() {
         }
       };
       
+      const checkForSelectedContact = async () => {
+        try {
+          const contactData = await AsyncStorage.getItem('selectedContact');
+          if (contactData && webViewRef.current) {
+            const parsed = JSON.parse(contactData);
+            // Clear the stored contact
+            await AsyncStorage.removeItem('selectedContact');
+            
+            // Inject the selected contact into the website
+            webViewRef.current.injectJavaScript(`
+              window.selectedContact = ${JSON.stringify(parsed)};
+              window.dispatchEvent(new CustomEvent('selectedContact', { 
+                detail: ${JSON.stringify(parsed)}
+              }));
+              if (window.onSelectedContact) {
+                window.onSelectedContact(${JSON.stringify(parsed)});
+              }
+              true;
+            `);
+          }
+        } catch (error) {
+          console.error('Error checking for selected contact:', error);
+        }
+      };
+      
       checkForScannedDocument();
+      checkForSelectedContact();
     }, [])
   );
 
@@ -406,6 +433,11 @@ function NativeWebViewScreen() {
           type: 'openDocumentScanner',
           documentType: documentType || 'Document'
         }));
+      };
+      
+      // Contact picker bridge function
+      window.openContactPicker = function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'openContactPicker' }));
       };
       
       // Override window.open to handle external URLs (like PDFs) in device browser
@@ -838,6 +870,63 @@ function NativeWebViewScreen() {
             forWebUpload: true, 
             documentType: data.documentType || 'Document' 
           });
+        } else if (data.type === "openContactPicker") {
+          // Open native contact picker
+          (async () => {
+            try {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }
+              
+              // Request contacts permission
+              const { status } = await Contacts.requestPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert(
+                  "Permission Required",
+                  "Please enable contacts access in Settings to select a contact.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Open Settings",
+                      onPress: () => {
+                        if (Platform.OS !== "web") {
+                          try {
+                            Linking.openSettings();
+                          } catch (error) {
+                            // openSettings not supported
+                          }
+                        }
+                      },
+                    },
+                  ]
+                );
+                return;
+              }
+              
+              // Get all contacts
+              const { data: contacts } = await Contacts.getContactsAsync({
+                fields: [
+                  Contacts.Fields.FirstName,
+                  Contacts.Fields.LastName,
+                  Contacts.Fields.Emails,
+                  Contacts.Fields.PhoneNumbers,
+                ],
+              });
+              
+              if (contacts.length > 0) {
+                // For now, use the first contact - in a full implementation,
+                // you'd show a picker UI. The ContactPickerScreen handles this.
+                (navigation as any).navigate("ContactPicker", { 
+                  forReferral: true 
+                });
+              } else {
+                Alert.alert("No Contacts", "No contacts found on your device.");
+              }
+            } catch (error) {
+              console.error("Error accessing contacts:", error);
+              Alert.alert("Error", "Could not access contacts. Please try again.");
+            }
+          })();
         }
       } catch (e) {
         // Ignore non-JSON messages
