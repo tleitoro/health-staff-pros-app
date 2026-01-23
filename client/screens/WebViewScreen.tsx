@@ -202,25 +202,50 @@ function NativeWebViewScreen() {
         }
       };
       
+      const injectContactData = (contactData: any) => {
+        if (!webViewRef.current) {
+          console.log('WebView ref not available');
+          return false;
+        }
+        
+        console.log('Injecting selected contact:', contactData);
+        
+        // Inject the selected contact into the website
+        webViewRef.current.injectJavaScript(`
+          (function() {
+            var contactData = ${JSON.stringify(contactData)};
+            console.log('Native app sending contact:', JSON.stringify(contactData));
+            
+            // Store globally
+            window.selectedContact = contactData;
+            
+            // Dispatch custom event
+            window.dispatchEvent(new CustomEvent('selectedContact', { 
+              detail: contactData
+            }));
+            
+            // Call callback if exists
+            if (window.onSelectedContact) {
+              window.onSelectedContact(contactData);
+            }
+            
+            // Also try postMessage for the website to receive
+            window.postMessage({ type: 'selectedContact', contact: contactData }, '*');
+          })();
+          true;
+        `);
+        return true;
+      };
+      
       const checkForSelectedContact = async () => {
         try {
           const contactData = await AsyncStorage.getItem('selectedContact');
-          if (contactData && webViewRef.current) {
+          if (contactData) {
             const parsed = JSON.parse(contactData);
             // Clear the stored contact
             await AsyncStorage.removeItem('selectedContact');
             
-            // Inject the selected contact into the website
-            webViewRef.current.injectJavaScript(`
-              window.selectedContact = ${JSON.stringify(parsed)};
-              window.dispatchEvent(new CustomEvent('selectedContact', { 
-                detail: ${JSON.stringify(parsed)}
-              }));
-              if (window.onSelectedContact) {
-                window.onSelectedContact(${JSON.stringify(parsed)});
-              }
-              true;
-            `);
+            injectContactData(parsed);
           }
         } catch (error) {
           console.error('Error checking for selected contact:', error);
@@ -228,7 +253,13 @@ function NativeWebViewScreen() {
       };
       
       checkForScannedDocument();
-      checkForSelectedContact();
+      
+      // Poll multiple times with increasing delays to catch the contact data
+      // This handles any race conditions between saving and focus events
+      const delays = [100, 300, 600, 1000];
+      delays.forEach(delay => {
+        setTimeout(checkForSelectedContact, delay);
+      });
     }, [])
   );
 

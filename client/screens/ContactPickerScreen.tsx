@@ -76,6 +76,8 @@ export default function ContactPickerScreen() {
           const contact = await Contacts.presentContactPickerAsync();
           
           if (contact) {
+            console.log('Raw contact from picker:', JSON.stringify(contact, null, 2));
+            
             const contactData = {
               firstName: contact.firstName || contact.name?.split(' ')[0] || '',
               lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
@@ -83,8 +85,21 @@ export default function ContactPickerScreen() {
               phoneNumbers: contact.phoneNumbers?.map(p => ({ number: p.number })) || [],
             };
             
+            console.log('Saving contact data:', JSON.stringify(contactData, null, 2));
+            
             await AsyncStorage.setItem('selectedContact', JSON.stringify(contactData));
+            
+            // Verify it was saved
+            const saved = await AsyncStorage.getItem('selectedContact');
+            console.log('Verified saved contact:', saved);
+            
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            
+            // Navigate back with the contact data
+            navigation.goBack();
+            return;
+          } else {
+            console.log('No contact selected, user cancelled');
           }
           
           navigation.goBack();
