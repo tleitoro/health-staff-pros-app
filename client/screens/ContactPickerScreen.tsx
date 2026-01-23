@@ -95,8 +95,12 @@ export default function ContactPickerScreen() {
             
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             
-            // Navigate back with the contact data
-            navigation.goBack();
+            // Show confirmation of what was captured
+            Alert.alert(
+              'Contact Selected',
+              `Name: ${contactData.firstName} ${contactData.lastName}\nEmail: ${contactData.emails[0]?.email || 'none'}\nPhone: ${contactData.phoneNumbers[0]?.number || 'none'}`,
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
             return;
           } else {
             console.log('No contact selected, user cancelled');
