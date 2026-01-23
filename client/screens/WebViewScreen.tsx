@@ -440,6 +440,12 @@ function NativeWebViewScreen() {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'openContactPicker' }));
       };
       
+      // Trigger native haptic feedback
+      // Styles: 'light', 'medium', 'heavy', 'success', 'error', 'warning', 'selection'
+      window.triggerHaptic = function(style) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'haptic', style: style || 'light' }));
+      };
+      
       // Override window.open to handle external URLs (like PDFs) in device browser
       var originalWindowOpen = window.open;
       window.open = function(url, target, features) {
@@ -870,6 +876,35 @@ function NativeWebViewScreen() {
             forWebUpload: true, 
             documentType: data.documentType || 'Document' 
           });
+        } else if (data.type === "haptic") {
+          // Trigger haptic feedback from website
+          if (Platform.OS !== "web") {
+            switch (data.style) {
+              case 'light':
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                break;
+              case 'medium':
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                break;
+              case 'heavy':
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                break;
+              case 'success':
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                break;
+              case 'error':
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                break;
+              case 'warning':
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                break;
+              case 'selection':
+                Haptics.selectionAsync();
+                break;
+              default:
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }
         } else if (data.type === "openContactPicker") {
           // Open native contact picker
           (async () => {
