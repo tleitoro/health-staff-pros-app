@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -45,6 +45,60 @@ export default function ContactPickerScreen() {
 
   const [permission, setPermission] = useState<Contacts.PermissionResponse | null>(null);
   const [selectedContacts, setSelectedContacts] = useState<SelectedContact[]>([]);
+  const [hasTriggeredPicker, setHasTriggeredPicker] = useState(false);
+
+  // Auto-trigger native contact picker when opened for referral
+  useEffect(() => {
+    if (forReferral && Platform.OS === "ios" && !hasTriggeredPicker) {
+      setHasTriggeredPicker(true);
+      
+      const triggerNativePicker = async () => {
+        try {
+          const { status } = await Contacts.requestPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert(
+              "Permission Required",
+              "Please enable contacts access in Settings to select a contact.",
+              [
+                { text: "Cancel", onPress: () => navigation.goBack(), style: "cancel" },
+                {
+                  text: "Open Settings",
+                  onPress: () => {
+                    Linking.openSettings();
+                    navigation.goBack();
+                  },
+                },
+              ]
+            );
+            return;
+          }
+          
+          const contact = await Contacts.presentContactPickerAsync();
+          
+          if (contact) {
+            const contactData = {
+              firstName: contact.firstName || contact.name?.split(' ')[0] || '',
+              lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
+              emails: contact.emails?.map(e => ({ email: e.email })) || [],
+              phoneNumbers: contact.phoneNumbers?.map(p => ({ number: p.number })) || [],
+            };
+            
+            await AsyncStorage.setItem('selectedContact', JSON.stringify(contactData));
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          
+          navigation.goBack();
+        } catch (error) {
+          console.error("Error picking contact:", error);
+          Alert.alert("Error", "Could not access contacts. Please try again.");
+          navigation.goBack();
+        }
+      };
+      
+      // Small delay to let the screen finish mounting
+      setTimeout(triggerNativePicker, 100);
+    }
+  }, [forReferral, hasTriggeredPicker, navigation]);
 
   const requestPermission = async () => {
     if (Platform.OS !== "web") {
@@ -89,8 +143,49 @@ export default function ContactPickerScreen() {
     }
 
     try {
+      // Use native contact picker UI on iOS
+      if (Platform.OS === "ios") {
+        const contact = await Contacts.presentContactPickerAsync();
+        
+        if (contact) {
+          // If opened for web referral, save contact and navigate back
+          if (forReferral) {
+            const contactData = {
+              firstName: contact.firstName || contact.name?.split(' ')[0] || '',
+              lastName: contact.lastName || contact.name?.split(' ').slice(1).join(' ') || '',
+              emails: contact.emails?.map(e => ({ email: e.email })) || [],
+              phoneNumbers: contact.phoneNumbers?.map(p => ({ number: p.number })) || [],
+            };
+            
+            await AsyncStorage.setItem('selectedContact', JSON.stringify(contactData));
+            
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            
+            navigation.goBack();
+            return;
+          }
+
+          const newContact: SelectedContact = {
+            id: contact.id || Date.now().toString(),
+            name: contact.name || "Unknown",
+            phone: contact.phoneNumbers?.[0]?.number,
+            email: contact.emails?.[0]?.email,
+          };
+
+          const exists = selectedContacts.some((c) => c.id === newContact.id);
+          if (!exists) {
+            setSelectedContacts((prev) => [...prev, newContact]);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } else {
+            Alert.alert("Already Added", "This contact has already been selected.");
+          }
+        }
+        return;
+      }
+
+      // Fallback for Android - get contacts list and pick first match
       const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails],
+        fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers, Contacts.Fields.Emails, Contacts.Fields.FirstName, Contacts.Fields.LastName],
       });
 
       if (data.length === 0) {
@@ -98,7 +193,8 @@ export default function ContactPickerScreen() {
         return;
       }
 
-      const contact = data[Math.floor(Math.random() * Math.min(data.length, 10))];
+      // On Android, present a simple selection from first 10 contacts
+      const contact = data[0];
 
       if (contact) {
         const newContact: SelectedContact = {
