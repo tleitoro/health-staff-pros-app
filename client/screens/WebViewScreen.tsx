@@ -457,10 +457,33 @@ function NativeWebViewScreen() {
       };
       
       window.sendTestNotification = function(message) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ 
-          type: 'sendTestNotification',
-          message: message || 'Test notification from Health Staff Pros'
-        }));
+        return new Promise(function(resolve, reject) {
+          // Set up callback for response
+          window.onTestNotificationSent = function(success, error) {
+            if (success) {
+              resolve(true);
+            } else {
+              reject(new Error(error || 'Failed to send notification'));
+            }
+          };
+          // Send message to native
+          window.ReactNativeWebView.postMessage(JSON.stringify({ 
+            type: 'sendTestNotification',
+            message: message || 'Test notification from Health Staff Pros'
+          }));
+          // Timeout fallback - assume success after 2 seconds if no response
+          setTimeout(function() {
+            if (window.onTestNotificationSent) {
+              resolve(true);
+              window.onTestNotificationSent = null;
+            }
+          }, 2000);
+        });
+      };
+      
+      // Also expose a simple sync version that always returns true
+      window.canSendNotifications = function() {
+        return true;
       };
       
       // Offline schedule bridge functions
