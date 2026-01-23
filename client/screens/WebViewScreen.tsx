@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -21,6 +21,20 @@ import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Calendar from "expo-calendar";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
+
+// Configure how notifications appear when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -137,6 +151,68 @@ function NativeWebViewScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [webViewKey, setWebViewKey] = useState(1);
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+
+  // Register for push notifications on mount
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+    
+    // Listen for incoming notifications
+    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      console.log("Notification received:", notification);
+    });
+    
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log("Notification response:", response);
+    });
+    
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, []);
+
+  const registerForPushNotificationsAsync = async () => {
+    if (!Device.isDevice) {
+      console.log("Must use physical device for push notifications");
+      return;
+    }
+
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== "granted") {
+        console.log("Push notification permission not granted");
+        return;
+      }
+
+      // Get the Expo push token
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: projectId,
+      });
+      
+      setExpoPushToken(tokenData.data);
+      console.log("Expo Push Token:", tokenData.data);
+
+      // Inject token into WebView once available
+      if (webViewRef.current && tokenData.data) {
+        webViewRef.current.injectJavaScript(`
+          window.expoPushToken = "${tokenData.data}";
+          window.dispatchEvent(new CustomEvent('expoPushToken', { detail: "${tokenData.data}" }));
+          true;
+        `);
+      }
+    } catch (error) {
+      console.log("Error registering for push notifications:", error);
+    }
+  };
 
   const progressWidth = useSharedValue(0);
   const progressOpacity = useSharedValue(1);
@@ -264,6 +340,18 @@ function NativeWebViewScreen() {
       
       window.checkBiometricAvailable = function() {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'checkBiometricAvailable' }));
+      };
+      
+      // Push notification bridge functions
+      window.requestPushToken = function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'requestPushToken' }));
+      };
+      
+      window.sendTestNotification = function(message) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+          type: 'sendTestNotification',
+          message: message || 'Test notification from Health Staff Pros'
+        }));
       };
       
       // Override window.open to handle external URLs (like PDFs) in device browser
@@ -612,12 +700,39 @@ function NativeWebViewScreen() {
               Alert.alert("Error", "Could not add event to calendar. Please try again.");
             }
           })();
+        } else if (data.type === "getPushToken" || data.type === "requestPushToken") {
+          // Website is requesting the push token
+          if (expoPushToken && webViewRef.current) {
+            webViewRef.current.injectJavaScript(`
+              window.expoPushToken = "${expoPushToken}";
+              window.dispatchEvent(new CustomEvent('expoPushToken', { detail: "${expoPushToken}" }));
+              if (window.onExpoPushToken) {
+                window.onExpoPushToken("${expoPushToken}");
+              }
+              true;
+            `);
+          }
+        } else if (data.type === "sendTestNotification") {
+          // Send a local test notification
+          (async () => {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: "Health Staff Pros",
+                body: data.message || "Test notification from Health Staff Pros",
+                sound: true,
+              },
+              trigger: null,
+            });
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+          })();
         }
       } catch (e) {
         // Ignore non-JSON messages
       }
     },
-    [backToTopOpacity, handleBiometricLogin, handleSaveBiometricCredentials]
+    [backToTopOpacity, handleBiometricLogin, handleSaveBiometricCredentials, expoPushToken]
   );
 
   return (
