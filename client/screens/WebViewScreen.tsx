@@ -24,6 +24,7 @@ import * as Calendar from "expo-calendar";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Configure how notifications appear when app is in foreground
 Notifications.setNotificationHandler({
@@ -352,6 +353,19 @@ function NativeWebViewScreen() {
           type: 'sendTestNotification',
           message: message || 'Test notification from Health Staff Pros'
         }));
+      };
+      
+      // Offline schedule bridge functions
+      window.cacheSchedule = function(shifts, syncedAt) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+          type: 'cacheSchedule',
+          shifts: shifts || [],
+          syncedAt: syncedAt || new Date().toISOString()
+        }));
+      };
+      
+      window.getCachedSchedule = function() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'getCachedSchedule' }));
       };
       
       // Override window.open to handle external URLs (like PDFs) in device browser
@@ -725,6 +739,52 @@ function NativeWebViewScreen() {
             });
             if (Platform.OS !== "web") {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+          })();
+        } else if (data.type === "cacheSchedule") {
+          // Store shifts in AsyncStorage for native offline access
+          (async () => {
+            try {
+              await AsyncStorage.setItem('offlineSchedule', JSON.stringify({
+                shifts: data.shifts || [],
+                syncedAt: data.syncedAt || new Date().toISOString()
+              }));
+              if (Platform.OS !== "web") {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+              // Notify website that cache was successful
+              if (webViewRef.current) {
+                webViewRef.current.injectJavaScript(`
+                  window.dispatchEvent(new CustomEvent('scheduleCached', { 
+                    detail: { success: true, shiftCount: ${data.shifts?.length || 0} }
+                  }));
+                  true;
+                `);
+              }
+            } catch (error) {
+              console.error('Failed to cache schedule:', error);
+            }
+          })();
+        } else if (data.type === "getCachedSchedule") {
+          // Retrieve cached schedule from AsyncStorage
+          (async () => {
+            try {
+              const cached = await AsyncStorage.getItem('offlineSchedule');
+              const scheduleData = cached ? JSON.parse(cached) : { shifts: [], syncedAt: null };
+              if (webViewRef.current) {
+                webViewRef.current.injectJavaScript(`
+                  window.cachedSchedule = ${JSON.stringify(scheduleData)};
+                  window.dispatchEvent(new CustomEvent('cachedScheduleReady', { 
+                    detail: ${JSON.stringify(scheduleData)}
+                  }));
+                  if (window.onCachedSchedule) {
+                    window.onCachedSchedule(${JSON.stringify(scheduleData)});
+                  }
+                  true;
+                `);
+              }
+            } catch (error) {
+              console.error('Failed to get cached schedule:', error);
             }
           })();
         }
