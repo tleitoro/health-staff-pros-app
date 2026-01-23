@@ -381,6 +381,24 @@ function NativeWebViewScreen() {
         hasBiometricBridge: true
       };
       
+      // Hide website's refresh button since app has native pull-to-refresh
+      var style = document.createElement('style');
+      style.textContent = \`
+        /* Hide refresh/reload buttons - app uses native pull-to-refresh */
+        button[aria-label="refresh"],
+        button[aria-label="Refresh"],
+        button[title="refresh"],
+        button[title="Refresh"],
+        .refresh-button,
+        .reload-button,
+        [data-testid="refresh-button"],
+        button:has(svg[class*="refresh"]),
+        button:has(svg[class*="rotate"]) {
+          display: none !important;
+        }
+      \`;
+      document.head.appendChild(style);
+      
       // Expose biometric bridge functions for the website to call
       window.requestBiometricLogin = function() {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'requestBiometricLogin' }));
