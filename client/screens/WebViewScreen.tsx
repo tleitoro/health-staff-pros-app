@@ -12,7 +12,7 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -172,6 +172,38 @@ function NativeWebViewScreen() {
       responseListener.remove();
     };
   }, []);
+
+  // Check for scanned documents when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      const checkForScannedDocument = async () => {
+        try {
+          const scannedData = await AsyncStorage.getItem('scannedDocument');
+          if (scannedData && webViewRef.current) {
+            const parsed = JSON.parse(scannedData);
+            // Clear the stored document
+            await AsyncStorage.removeItem('scannedDocument');
+            
+            // Inject the scanned document into the website
+            webViewRef.current.injectJavaScript(`
+              window.scannedDocument = ${JSON.stringify(parsed)};
+              window.dispatchEvent(new CustomEvent('scannedDocument', { 
+                detail: ${JSON.stringify(parsed)}
+              }));
+              if (window.onScannedDocument) {
+                window.onScannedDocument(${JSON.stringify(parsed)});
+              }
+              true;
+            `);
+          }
+        } catch (error) {
+          console.error('Error checking for scanned document:', error);
+        }
+      };
+      
+      checkForScannedDocument();
+    }, [])
+  );
 
   const registerForPushNotificationsAsync = async () => {
     if (!Device.isDevice) {
@@ -366,6 +398,14 @@ function NativeWebViewScreen() {
       
       window.getCachedSchedule = function() {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'getCachedSchedule' }));
+      };
+      
+      // Document scanner bridge function
+      window.openDocumentScanner = function(documentType) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ 
+          type: 'openDocumentScanner',
+          documentType: documentType || 'Document'
+        }));
       };
       
       // Override window.open to handle external URLs (like PDFs) in device browser
@@ -589,7 +629,8 @@ function NativeWebViewScreen() {
               (async () => {
                 try {
                   const fileName = data.fileName || `timesheet_${Date.now()}.pdf`;
-                  const localUri = `${FileSystem.documentDirectory}${fileName}`;
+                  const docDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory;
+                  const localUri = `${docDir}${fileName}`;
                   const downloadResult = await FileSystem.downloadAsync(url, localUri);
                   
                   if (downloadResult.status === 200 && await Sharing.isAvailableAsync()) {
@@ -622,7 +663,8 @@ function NativeWebViewScreen() {
               const safeFileName = fileName || `timesheet_${Date.now()}.pdf`;
               
               // Download the file to local cache
-              const localUri = `${FileSystem.documentDirectory}${safeFileName}`;
+              const docDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory;
+              const localUri = `${docDir}${safeFileName}`;
               const downloadResult = await FileSystem.downloadAsync(url, localUri);
               
               if (downloadResult.status === 200) {
@@ -787,6 +829,15 @@ function NativeWebViewScreen() {
               console.error('Failed to get cached schedule:', error);
             }
           })();
+        } else if (data.type === "openDocumentScanner") {
+          // Open native document scanner
+          if (Platform.OS !== "web") {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+          (navigation as any).navigate("DocumentScanner", { 
+            forWebUpload: true, 
+            documentType: data.documentType || 'Document' 
+          });
         }
       } catch (e) {
         // Ignore non-JSON messages

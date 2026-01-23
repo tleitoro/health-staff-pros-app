@@ -10,11 +10,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -28,7 +31,18 @@ interface ScannedDocument {
   date: Date;
 }
 
+type DocumentScannerRouteParams = {
+  DocumentScanner: {
+    forWebUpload?: boolean;
+    documentType?: string;
+  };
+};
+
 export default function DocumentScannerScreen() {
+  const navigation = useNavigation();
+  const route = useRoute<RouteProp<DocumentScannerRouteParams, 'DocumentScanner'>>();
+  const forWebUpload = route.params?.forWebUpload || false;
+  const documentType = route.params?.documentType || 'Document';
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -68,6 +82,33 @@ export default function DocumentScannerScreen() {
     }
   };
 
+  const sendScannedImageToWeb = useCallback(async (uri: string) => {
+    try {
+      // Convert image to base64
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+      const imageData = `data:image/jpeg;base64,${base64}`;
+      
+      // Store the scanned image data for the WebView to pick up
+      await AsyncStorage.setItem('scannedDocument', JSON.stringify({
+        imageData,
+        documentType,
+        scannedAt: new Date().toISOString(),
+      }));
+      
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      
+      // Navigate back to WebView
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error processing scanned image:", error);
+      Alert.alert("Error", "Could not process the scanned document. Please try again.");
+    }
+  }, [documentType, navigation]);
+
   const takePicture = useCallback(async () => {
     if (!cameraRef.current) return;
 
@@ -78,25 +119,31 @@ export default function DocumentScannerScreen() {
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
+        base64: forWebUpload,
       });
 
       if (photo) {
-        const newDoc: ScannedDocument = {
-          id: Date.now().toString(),
-          uri: photo.uri,
-          type: "License/Certificate",
-          date: new Date(),
-        };
-        setScannedDocs((prev) => [newDoc, ...prev]);
-        setIsCameraActive(false);
+        if (forWebUpload) {
+          // Send the image back to the website
+          await sendScannedImageToWeb(photo.uri);
+        } else {
+          const newDoc: ScannedDocument = {
+            id: Date.now().toString(),
+            uri: photo.uri,
+            type: documentType,
+            date: new Date(),
+          };
+          setScannedDocs((prev) => [newDoc, ...prev]);
+          setIsCameraActive(false);
 
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          Alert.alert(
+            "Document Scanned",
+            "Your document has been captured. You can upload it from your scanned documents."
+          );
         }
-        Alert.alert(
-          "Document Scanned",
-          "Your document has been captured. You can upload it from your scanned documents."
-        );
       }
     } catch (error) {
       console.error("Error taking picture:", error);
@@ -105,7 +152,7 @@ export default function DocumentScannerScreen() {
       }
       Alert.alert("Error", "Could not capture document. Please try again.");
     }
-  }, []);
+  }, [forWebUpload, documentType, sendScannedImageToWeb]);
 
   const pickImage = async () => {
     if (Platform.OS !== "web") {
@@ -118,16 +165,21 @@ export default function DocumentScannerScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const newDoc: ScannedDocument = {
-        id: Date.now().toString(),
-        uri: result.assets[0].uri,
-        type: "License/Certificate",
-        date: new Date(),
-      };
-      setScannedDocs((prev) => [newDoc, ...prev]);
+      if (forWebUpload) {
+        // Send the picked image back to the website
+        await sendScannedImageToWeb(result.assets[0].uri);
+      } else {
+        const newDoc: ScannedDocument = {
+          id: Date.now().toString(),
+          uri: result.assets[0].uri,
+          type: documentType,
+          date: new Date(),
+        };
+        setScannedDocs((prev) => [newDoc, ...prev]);
 
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
       }
     }
   };
