@@ -10,7 +10,16 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.healthstaffpros.app"
+      "bundleIdentifier": "com.healthstaffpros.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Health Staff Pros uses the camera to scan and upload employment documents such as licenses, certifications, ID cards, and I-9 verification forms required for your healthcare staffing employment.",
+        "NSPhotoLibraryUsageDescription": "Health Staff Pros needs access to your photo library to upload employment documents such as licenses, certifications, and I-9 verification forms.",
+        "NSContactsUsageDescription": "Health Staff Pros uses your contacts to help you refer colleagues for healthcare staffing positions and earn referral bonuses.",
+        "NSCalendarsFullAccessUsageDescription": "Health Staff Pros syncs your work shifts to your calendar so you can easily track your scheduled healthcare assignments.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "Health Staff Pros adds your work shifts to your calendar so you can easily track your scheduled healthcare assignments.",
+        "NSFaceIDUsageDescription": "Health Staff Pros uses Face ID for secure, quick login to protect your employment and patient data.",
+        "NSLocationWhenInUseUsageDescription": "Health Staff Pros uses your location to verify clock-in/clock-out times at healthcare facility work sites."
+      }
     },
     "android": {
       "adaptiveIcon": {
