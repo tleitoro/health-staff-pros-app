@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import WebViewScreen from "@/screens/WebViewScreen";
@@ -12,10 +13,13 @@ import OfflineScheduleScreen from "@/screens/OfflineScheduleScreen";
 import NotificationsScreen from "@/screens/NotificationsScreen";
 import ContactPickerScreen from "@/screens/ContactPickerScreen";
 import ShareSheetScreen from "@/screens/ShareSheetScreen";
+import OnboardingScreen, { checkOnboardingStatus } from "@/screens/OnboardingScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
+import { BrandColors } from "@/constants/theme";
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   WebView: undefined;
   Settings: undefined;
   Error: { url?: string };
@@ -34,9 +38,36 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions({ transparent: false });
   const transparentOptions = useScreenOptions({ transparent: true });
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+
+  useEffect(() => {
+    checkOnboardingStatus().then((seen) => {
+      setHasSeenOnboarding(seen);
+      setIsLoading(false);
+    });
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" }}>
+        <ActivityIndicator size="large" color={BrandColors.primary} />
+      </View>
+    );
+  }
 
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator 
+      screenOptions={screenOptions}
+      initialRouteName={hasSeenOnboarding ? "WebView" : "Onboarding"}
+    >
+      <Stack.Screen
+        name="Onboarding"
+        component={OnboardingScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="WebView"
         component={WebViewScreen}
