@@ -254,6 +254,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: Spacing.md,
     color: "#1A1A1A",
+    lineHeight: 36,
   },
   description: {
     fontSize: 16,
