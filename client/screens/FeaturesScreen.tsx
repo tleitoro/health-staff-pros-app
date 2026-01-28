@@ -276,8 +276,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
+    fontSize: 16,
     fontWeight: "600",
     marginBottom: 2,
+    lineHeight: 22,
   },
   featureDescription: {},
   divider: {
