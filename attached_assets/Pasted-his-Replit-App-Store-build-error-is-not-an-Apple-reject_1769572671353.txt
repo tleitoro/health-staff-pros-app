@@ -1,0 +1,132 @@
+his Replit App Store build error is not an Apple rejection yet — it’s failing inside Replit’s custom build pipeline before the App Store upload completes.
+
+From your screenshot, the key signals are:
+
+PROFILE: production
+
+VERSION: missing ❌
+
+Fingerprint: missing ❌
+
+Error: Unknown custom build error
+
+Type: App Store
+
+It worked before, which is important
+
+This narrows it down to a configuration regression, not a code logic issue.
+
+What’s actually going wrong (most likely causes)
+1. Missing App Version (Very Common)
+
+Replit’s App Store builder requires an explicit version string (e.g. 1.0.3).
+If the version field was removed, reset, or not auto-incremented, the build fails with this vague error.
+
+Check:
+
+In Replit → App → App Store / Mobile Build Settings
+
+Make sure you have:
+
+Version: 1.0.x (must be higher than last App Store version)
+
+Build number: incremented
+
+👉 If Apple already has 1.0.1, you cannot reuse it.
+
+2. Missing or Invalid Fingerprint
+
+Replit uses a build fingerprint to identify the binary.
+
+This can break if:
+
+Environment variables changed
+
+iOS config regenerated
+
+Replit updated their mobile builder
+
+Fix:
+
+In Replit:
+
+Open App → Mobile → iOS
+
+Click Regenerate iOS configuration
+
+Re-run the App Store build
+
+This often restores the fingerprint automatically.
+
+3. Production Profile Misconfiguration
+
+Your screenshot shows:
+
+PROFILE: production
+STATUS: missing
+
+This means Replit cannot find or validate:
+
+Bundle identifier
+
+Signing configuration
+
+App metadata
+
+Verify:
+
+Bundle ID matches exactly what exists in App Store Connect
+
+Example: com.shiftbridgepro.app
+
+No extra spaces
+
+No change since last successful upload
+
+If you renamed the app, repo, or org — this breaks production builds.
+
+4. Silent iOS Dependency Failure
+
+If you recently:
+
+Updated Node
+
+Updated Expo / React Native
+
+Changed build commands
+
+Added native packages
+
+Replit may fail silently.
+
+Quick sanity fix:
+
+Clear build cache (if available)
+
+Re-run build without changes
+
+If still failing → open Logs (this is critical)
+
+What to do right now (step-by-step)
+
+Open the job → Logs
+
+Look for:
+
+version
+
+fingerprint
+
+bundle identifier
+
+signing
+
+Set a new version
+
+Example: 1.0.4
+
+Regenerate iOS config
+
+Confirm bundle ID matches App Store Connect
+
+Retry App Store build
