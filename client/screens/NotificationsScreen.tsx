@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
+import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -19,27 +20,6 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing, BorderRadius } from "@/constants/theme";
-
-import Constants from "expo-constants";
-
-let Notifications: any = null;
-const isAndroidExpoGo = Platform.OS === 'android' && Constants.appOwnership === 'expo';
-if (!isAndroidExpoGo) {
-  try {
-    Notifications = require("expo-notifications");
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
-  } catch (e) {
-    console.log("Notifications not available in this environment");
-  }
-}
 
 const NOTIFICATION_PREFS_KEY = "@notification_prefs";
 
@@ -58,6 +38,16 @@ const DEFAULT_PREFS: NotificationPrefs = {
   messages: true,
   updates: false,
 };
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
@@ -97,61 +87,46 @@ export default function NotificationsScreen() {
     }
 
     if (value) {
-      if (!Notifications) {
-        Alert.alert(
-          "Not Available",
-          "Push notifications are not available in Expo Go on Android. They will work in the production app."
-        );
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+
+      if (existingStatus === "granted") {
+        const newPrefs = { ...prefs, enabled: true };
+        setPrefs(newPrefs);
+        savePreferences(newPrefs);
+        sendTestNotification();
         return;
       }
-      try {
-        const { status: existingStatus } =
-          await Notifications.getPermissionsAsync();
 
-        if (existingStatus === "granted") {
-          const newPrefs = { ...prefs, enabled: true };
-          setPrefs(newPrefs);
-          savePreferences(newPrefs);
-          sendTestNotification();
-          return;
+      const { status } = await Notifications.requestPermissionsAsync();
+
+      if (status === "granted") {
+        const newPrefs = { ...prefs, enabled: true };
+        setPrefs(newPrefs);
+        savePreferences(newPrefs);
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-
-        const { status } = await Notifications.requestPermissionsAsync();
-
-        if (status === "granted") {
-          const newPrefs = { ...prefs, enabled: true };
-          setPrefs(newPrefs);
-          savePreferences(newPrefs);
-          if (Platform.OS !== "web") {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-          sendTestNotification();
-        } else {
-          Alert.alert(
-            "Permission Required",
-            "Please enable notifications in Settings to receive shift alerts.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Open Settings",
-                onPress: () => {
-                  if (Platform.OS !== "web") {
-                    try {
-                      Linking.openSettings();
-                    } catch (error) {
-                      // openSettings not supported
-                    }
-                  }
-                },
-              },
-            ]
-          );
-        }
-      } catch (e) {
-        console.log("Notifications not supported in this environment");
+        sendTestNotification();
+      } else {
         Alert.alert(
-          "Not Available",
-          "Push notifications are not available in Expo Go on Android. They will work in the production app."
+          "Permission Required",
+          "Please enable notifications in Settings to receive shift alerts.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => {
+                if (Platform.OS !== "web") {
+                  try {
+                    Linking.openSettings();
+                  } catch (error) {
+                    // openSettings not supported
+                  }
+                }
+              },
+            },
+          ]
         );
       }
     } else {
@@ -174,19 +149,14 @@ export default function NotificationsScreen() {
   );
 
   const sendTestNotification = async () => {
-    if (!Notifications) return;
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Notifications Enabled",
-          body: "You'll now receive alerts for new shifts and updates!",
-          sound: true,
-        },
-        trigger: { seconds: 1, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
-      });
-    } catch (e) {
-      console.log("Local notifications not supported in this environment");
-    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Notifications Enabled",
+        body: "You'll now receive alerts for new shifts and updates!",
+        sound: true,
+      },
+      trigger: { seconds: 1, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+    });
   };
 
   const sendDemoNotification = async () => {
@@ -194,24 +164,15 @@ export default function NotificationsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    if (!Notifications) {
-      Alert.alert("Not Available", "Notifications are not available in Expo Go on Android.");
-      return;
-    }
-
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "New Shift Available",
-          body: "RN - ICU position at Memorial Hospital. $45/hr. Tap to view details.",
-          sound: true,
-          data: { type: "new_shift", shiftId: "demo-123" },
-        },
-        trigger: { seconds: 2, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
-      });
-    } catch (e) {
-      console.log("Local notifications not supported in this environment");
-    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "New Shift Available",
+        body: "RN - ICU position at Memorial Hospital. $45/hr. Tap to view details.",
+        sound: true,
+        data: { type: "new_shift", shiftId: "demo-123" },
+      },
+      trigger: { seconds: 2, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+    });
 
     Alert.alert(
       "Demo Notification Sent",
