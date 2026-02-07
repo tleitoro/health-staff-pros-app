@@ -1142,7 +1142,13 @@ function NativeWebViewScreen() {
       <WebView
         key={webViewKey}
         ref={webViewRef}
-        source={{ uri: WEB_URL }}
+        source={{ 
+          uri: WEB_URL,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          }
+        }}
         style={[styles.webView, { marginTop: insets.top }]}
         onNavigationStateChange={handleNavigationStateChange}
         onLoadStart={handleLoadStart}
