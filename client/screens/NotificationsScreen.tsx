@@ -20,20 +20,25 @@ import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing, BorderRadius } from "@/constants/theme";
 
+import Constants from "expo-constants";
+
 let Notifications: any = null;
-try {
-  Notifications = require("expo-notifications");
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch (e) {
-  console.log("Notifications not available in this environment");
+const isAndroidExpoGo = Platform.OS === 'android' && Constants.appOwnership === 'expo';
+if (!isAndroidExpoGo) {
+  try {
+    Notifications = require("expo-notifications");
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (e) {
+    console.log("Notifications not available in this environment");
+  }
 }
 
 const NOTIFICATION_PREFS_KEY = "@notification_prefs";
