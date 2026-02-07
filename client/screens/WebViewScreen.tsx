@@ -26,6 +26,20 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
+
+import { useTheme } from "@/hooks/useTheme";
+import { BrandColors, Spacing } from "@/constants/theme";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
 
 // Configure how notifications appear when app is in foreground
 // Wrap in try-catch to prevent crash on Android Expo Go (SDK 53+)
@@ -42,21 +56,6 @@ try {
 } catch (e) {
   console.log("Notifications not supported in this environment");
 }
-
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  interpolate,
-  Extrapolation,
-} from "react-native-reanimated";
-
-import { useTheme } from "@/hooks/useTheme";
-import { BrandColors, Spacing } from "@/constants/theme";
-import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 
 const BIOMETRIC_CREDENTIALS_KEY = "healthstaffpros_biometric_credentials";
 
