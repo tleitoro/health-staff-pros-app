@@ -28,15 +28,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
 
 // Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Wrap in try-catch to prevent crash on Android Expo Go (SDK 53+)
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.log("Notifications not supported in this environment");
+}
+
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -159,18 +165,26 @@ function NativeWebViewScreen() {
   useEffect(() => {
     registerForPushNotificationsAsync();
     
-    // Listen for incoming notifications
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log("Notification received:", notification);
-    });
+    let notificationListener: any;
+    let responseListener: any;
     
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log("Notification response:", response);
-    });
+    try {
+      notificationListener = Notifications.addNotificationReceivedListener(notification => {
+        console.log("Notification received:", notification);
+      });
+      
+      responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+        console.log("Notification response:", response);
+      });
+    } catch (e) {
+      console.log("Notification listeners not supported in this environment");
+    }
     
     return () => {
-      notificationListener.remove();
-      responseListener.remove();
+      try {
+        if (notificationListener) notificationListener.remove();
+        if (responseListener) responseListener.remove();
+      } catch (e) {}
     };
   }, []);
 
