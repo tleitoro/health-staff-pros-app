@@ -27,6 +27,22 @@ import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
 
+// Configure how notifications appear when app is in foreground
+// Wrap in try-catch to prevent crash on Android Expo Go (SDK 53+)
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.log("Notifications not supported in this environment");
+}
+
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -41,17 +57,6 @@ import { BrandColors, Spacing } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 const BIOMETRIC_CREDENTIALS_KEY = "healthstaffpros_biometric_credentials";
 
@@ -160,18 +165,26 @@ function NativeWebViewScreen() {
   useEffect(() => {
     registerForPushNotificationsAsync();
     
-    // Listen for incoming notifications
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log("Notification received:", notification);
-    });
+    let notificationListener: any;
+    let responseListener: any;
     
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log("Notification response:", response);
-    });
+    try {
+      notificationListener = Notifications.addNotificationReceivedListener(notification => {
+        console.log("Notification received:", notification);
+      });
+      
+      responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+        console.log("Notification response:", response);
+      });
+    } catch (e) {
+      console.log("Notification listeners not supported in this environment");
+    }
     
     return () => {
-      notificationListener.remove();
-      responseListener.remove();
+      try {
+        if (notificationListener) notificationListener.remove();
+        if (responseListener) responseListener.remove();
+      } catch (e) {}
     };
   }, []);
 
@@ -320,14 +333,12 @@ function NativeWebViewScreen() {
   );
 
   const handleLoadStart = useCallback(() => {
-    console.log("[DEBUG] WebView: load started");
     setIsLoading(true);
     setHasError(false);
     progressOpacity.value = withTiming(1, { duration: 100 });
   }, [progressOpacity]);
 
   const handleLoadEnd = useCallback(() => {
-    console.log("[DEBUG] WebView: load ended");
     setIsLoading(false);
     setRefreshing(false);
     progressOpacity.value = withTiming(0, { duration: 300 });
@@ -344,9 +355,7 @@ function NativeWebViewScreen() {
     [progressWidth]
   );
 
-  const handleError = useCallback((syntheticEvent: any) => {
-    const { nativeEvent } = syntheticEvent || {};
-    console.log("[DEBUG] WebView: error occurred", nativeEvent?.description || nativeEvent?.statusCode || "unknown");
+  const handleError = useCallback(() => {
     setHasError(true);
     setIsLoading(false);
     navigation.navigate("Error", { url: currentUrl });
