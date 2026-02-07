@@ -21,7 +21,6 @@ import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Calendar from "expo-calendar";
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -41,9 +40,9 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 
-// Configure how notifications appear when app is in foreground
-// Wrap in try-catch to prevent crash on Android Expo Go (SDK 53+)
+let Notifications: any = null;
 try {
+  Notifications = require("expo-notifications");
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -54,7 +53,7 @@ try {
     }),
   });
 } catch (e) {
-  console.log("Notifications not supported in this environment");
+  console.log("Notifications not available in this environment");
 }
 
 const BIOMETRIC_CREDENTIALS_KEY = "healthstaffpros_biometric_credentials";
@@ -167,16 +166,18 @@ function NativeWebViewScreen() {
     let notificationListener: any;
     let responseListener: any;
     
-    try {
-      notificationListener = Notifications.addNotificationReceivedListener(notification => {
-        console.log("Notification received:", notification);
-      });
-      
-      responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-        console.log("Notification response:", response);
-      });
-    } catch (e) {
-      console.log("Notification listeners not supported in this environment");
+    if (Notifications) {
+      try {
+        notificationListener = Notifications.addNotificationReceivedListener((notification: any) => {
+          console.log("Notification received:", notification);
+        });
+        
+        responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
+          console.log("Notification response:", response);
+        });
+      } catch (e) {
+        console.log("Notification listeners not supported in this environment");
+      }
     }
     
     return () => {
@@ -277,8 +278,8 @@ function NativeWebViewScreen() {
   );
 
   const registerForPushNotificationsAsync = async () => {
-    if (!Device.isDevice) {
-      console.log("Must use physical device for push notifications");
+    if (!Notifications || !Device.isDevice) {
+      console.log("Push notifications not available");
       return;
     }
 
@@ -901,6 +902,7 @@ function NativeWebViewScreen() {
               }
               
               // Try to send local notification
+              if (!Notifications) throw new Error("Notifications not available");
               await Notifications.scheduleNotificationAsync({
                 content: {
                   title: "Health Staff Pros",

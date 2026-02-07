@@ -12,7 +12,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
-import * as Notifications from "expo-notifications";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -20,6 +19,22 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { BrandColors, Spacing, BorderRadius } from "@/constants/theme";
+
+let Notifications: any = null;
+try {
+  Notifications = require("expo-notifications");
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.log("Notifications not available in this environment");
+}
 
 const NOTIFICATION_PREFS_KEY = "@notification_prefs";
 
@@ -38,20 +53,6 @@ const DEFAULT_PREFS: NotificationPrefs = {
   messages: true,
   updates: false,
 };
-
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch (e) {
-  console.log("Notifications not supported in this environment");
-}
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
@@ -91,6 +92,13 @@ export default function NotificationsScreen() {
     }
 
     if (value) {
+      if (!Notifications) {
+        Alert.alert(
+          "Not Available",
+          "Push notifications are not available in Expo Go on Android. They will work in the production app."
+        );
+        return;
+      }
       try {
         const { status: existingStatus } =
           await Notifications.getPermissionsAsync();
@@ -161,6 +169,7 @@ export default function NotificationsScreen() {
   );
 
   const sendTestNotification = async () => {
+    if (!Notifications) return;
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -178,6 +187,11 @@ export default function NotificationsScreen() {
   const sendDemoNotification = async () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    if (!Notifications) {
+      Alert.alert("Not Available", "Notifications are not available in Expo Go on Android.");
+      return;
     }
 
     try {
