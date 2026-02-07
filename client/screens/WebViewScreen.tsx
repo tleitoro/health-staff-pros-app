@@ -41,19 +41,22 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 
 let Notifications: any = null;
-try {
-  Notifications = require("expo-notifications");
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch (e) {
-  console.log("Notifications not available in this environment");
+const isAndroidExpoGo = Platform.OS === 'android' && Constants.appOwnership === 'expo';
+if (!isAndroidExpoGo) {
+  try {
+    Notifications = require("expo-notifications");
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (e) {
+    console.log("Notifications not available in this environment");
+  }
 }
 
 const BIOMETRIC_CREDENTIALS_KEY = "healthstaffpros_biometric_credentials";
