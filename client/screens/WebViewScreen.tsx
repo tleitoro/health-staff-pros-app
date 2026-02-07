@@ -336,12 +336,14 @@ function NativeWebViewScreen() {
   );
 
   const handleLoadStart = useCallback(() => {
+    console.log("[DEBUG] WebView: load started");
     setIsLoading(true);
     setHasError(false);
     progressOpacity.value = withTiming(1, { duration: 100 });
   }, [progressOpacity]);
 
   const handleLoadEnd = useCallback(() => {
+    console.log("[DEBUG] WebView: load ended");
     setIsLoading(false);
     setRefreshing(false);
     progressOpacity.value = withTiming(0, { duration: 300 });
@@ -358,7 +360,9 @@ function NativeWebViewScreen() {
     [progressWidth]
   );
 
-  const handleError = useCallback(() => {
+  const handleError = useCallback((syntheticEvent: any) => {
+    const { nativeEvent } = syntheticEvent || {};
+    console.log("[DEBUG] WebView: error occurred", nativeEvent?.description || nativeEvent?.statusCode || "unknown");
     setHasError(true);
     setIsLoading(false);
     navigation.navigate("Error", { url: currentUrl });
@@ -1125,7 +1129,13 @@ function NativeWebViewScreen() {
         onLoadEnd={handleLoadEnd}
         onLoadProgress={handleLoadProgress}
         onError={handleError}
-        onHttpError={handleError}
+        onHttpError={(syntheticEvent: any) => {
+          const { nativeEvent } = syntheticEvent || {};
+          console.log("[DEBUG] WebView: HTTP error", nativeEvent?.statusCode, nativeEvent?.url);
+          if (nativeEvent?.statusCode >= 500) {
+            handleError(syntheticEvent);
+          }
+        }}
         onMessage={handleMessage}
         injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
         injectedJavaScript={injectedJavaScript}
