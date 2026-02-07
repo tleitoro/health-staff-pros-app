@@ -43,11 +43,9 @@ export default function RootStackNavigator() {
 
   useEffect(() => {
     checkOnboardingStatus().then((seen) => {
-      console.log("[Nav] Onboarding seen:", seen);
       setHasSeenOnboarding(seen);
       setIsLoading(false);
-    }).catch((e) => {
-      console.log("[Nav] Onboarding check error:", e);
+    }).catch(() => {
       setIsLoading(false);
     });
   }, []);
