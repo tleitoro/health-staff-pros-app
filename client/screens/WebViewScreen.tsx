@@ -1159,7 +1159,7 @@ function NativeWebViewScreen() {
           }
         }}
         onMessage={handleMessage}
-        injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
+        injectedJavaScriptBeforeContentLoaded={Platform.OS === "android" ? undefined : injectedJavaScriptBeforeContentLoaded}
         injectedJavaScript={Platform.OS === "android"
           ? `
             (function() {
