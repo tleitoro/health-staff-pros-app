@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
-import * as Notifications from "expo-notifications";
+import * as SafeNotifications from "@/utils/notifications";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -39,7 +39,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   updates: false,
 };
 
-Notifications.setNotificationHandler({
+SafeNotifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
@@ -88,7 +88,7 @@ export default function NotificationsScreen() {
 
     if (value) {
       const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
+        await SafeNotifications.getPermissionsAsync();
 
       if (existingStatus === "granted") {
         const newPrefs = { ...prefs, enabled: true };
@@ -98,7 +98,7 @@ export default function NotificationsScreen() {
         return;
       }
 
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await SafeNotifications.requestPermissionsAsync();
 
       if (status === "granted") {
         const newPrefs = { ...prefs, enabled: true };
@@ -149,13 +149,13 @@ export default function NotificationsScreen() {
   );
 
   const sendTestNotification = async () => {
-    await Notifications.scheduleNotificationAsync({
+    await SafeNotifications.scheduleNotificationAsync({
       content: {
         title: "Notifications Enabled",
         body: "You'll now receive alerts for new shifts and updates!",
         sound: true,
       },
-      trigger: { seconds: 1, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      trigger: { seconds: 1 },
     });
   };
 
@@ -164,14 +164,14 @@ export default function NotificationsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    await Notifications.scheduleNotificationAsync({
+    await SafeNotifications.scheduleNotificationAsync({
       content: {
         title: "New Shift Available",
         body: "RN - ICU position at Memorial Hospital. $45/hr. Tap to view details.",
         sound: true,
         data: { type: "new_shift", shiftId: "demo-123" },
       },
-      trigger: { seconds: 2, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      trigger: { seconds: 2 },
     });
 
     Alert.alert(
