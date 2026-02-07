@@ -140,6 +140,7 @@ export default function WebViewScreen() {
 }
 
 function NativeWebViewScreen() {
+  console.log("[WebView] NativeWebViewScreen rendering, WebView component:", WebView ? "loaded" : "NULL");
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
@@ -155,6 +156,18 @@ function NativeWebViewScreen() {
   const [scrollOffset, setScrollOffset] = useState(0);
   const [webViewKey, setWebViewKey] = useState(1);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const loadStartedRef = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!loadStartedRef.current) {
+        console.log("[WebView] Load timeout - no load events received");
+        setLoadTimedOut(true);
+      }
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [webViewKey]);
 
   // Register for push notifications on mount
   useEffect(() => {
@@ -328,12 +341,16 @@ function NativeWebViewScreen() {
   );
 
   const handleLoadStart = useCallback(() => {
+    console.log("[WebView] Load started");
+    loadStartedRef.current = true;
+    setLoadTimedOut(false);
     setIsLoading(true);
     setHasError(false);
     progressOpacity.value = withTiming(1, { duration: 100 });
   }, [progressOpacity]);
 
   const handleLoadEnd = useCallback(() => {
+    console.log("[WebView] Load ended");
     setIsLoading(false);
     setRefreshing(false);
     progressOpacity.value = withTiming(0, { duration: 300 });
@@ -341,6 +358,9 @@ function NativeWebViewScreen() {
 
   const handleLoadProgress = useCallback(
     ({ nativeEvent }: { nativeEvent: { progress: number } }) => {
+      if (Math.round(nativeEvent.progress * 100) % 25 === 0) {
+        console.log("[WebView] Progress:", Math.round(nativeEvent.progress * 100) + "%");
+      }
       setLoadProgress(nativeEvent.progress);
       progressWidth.value = withSpring(nativeEvent.progress * 100, {
         damping: 15,
@@ -350,7 +370,10 @@ function NativeWebViewScreen() {
     [progressWidth]
   );
 
-  const handleError = useCallback(() => {
+  const handleError = useCallback((syntheticEvent?: any) => {
+    const desc = syntheticEvent?.nativeEvent?.description || "unknown";
+    const code = syntheticEvent?.nativeEvent?.code || "unknown";
+    console.log("[WebView] Error:", desc, "code:", code);
     setHasError(true);
     setIsLoading(false);
     navigation.navigate("Error", { url: currentUrl });
@@ -1130,22 +1153,13 @@ function NativeWebViewScreen() {
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
         startInLoadingState={true}
-        userAgent={
-          Platform.OS === "ios"
-            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 HealthStaffProsApp/1.0"
-            : Platform.OS === "android"
-              ? "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 HealthStaffProsApp/1.0"
-              : undefined
-        }
         applicationNameForUserAgent="HealthStaffProsApp/1.0"
         allowFileAccess={true}
-        allowFileAccessFromFileURLs={true}
-        allowUniversalAccessFromFileURLs={true}
         allowsFullscreenVideo={true}
         overScrollMode="never"
-        scalesPageToFit={true}
         cacheMode="LOAD_DEFAULT"
-        incognito={false}
+        mixedContentMode="compatibility"
+        setSupportMultipleWindows={false}
         renderLoading={() => (
           <View
             style={[
@@ -1154,11 +1168,44 @@ function NativeWebViewScreen() {
             ]}
           >
             <ActivityIndicator size="large" color={BrandColors.primary} />
+            <Text style={{ marginTop: 16, fontSize: 16, color: "#666", textAlign: "center" }}>
+              Loading Health Staff Pros...
+            </Text>
           </View>
         )}
         contentInset={{ bottom: insets.bottom }}
         automaticallyAdjustContentInsets={false}
+        onRenderProcessGone={(event: any) => {
+          console.log("[WebView] Render process gone:", event?.nativeEvent);
+          setWebViewKey(prev => prev + 1);
+        }}
+        onContentProcessDidTerminate={() => {
+          console.log("[WebView] Content process terminated, reloading...");
+          setWebViewKey(prev => prev + 1);
+        }}
       />
+
+      {loadTimedOut ? (
+        <View style={[styles.loadingContainer, { backgroundColor: "#FFFFFF" }]}>
+          <Feather name="alert-circle" size={48} color={BrandColors.primary} />
+          <Text style={{ marginTop: 16, fontSize: 18, fontWeight: "600", color: "#1A1A1A", textAlign: "center" }}>
+            Taking longer than expected
+          </Text>
+          <Text style={{ marginTop: 8, fontSize: 14, color: "#666", textAlign: "center", paddingHorizontal: 32 }}>
+            The page is still loading. Please check your internet connection and try again.
+          </Text>
+          <Pressable
+            onPress={() => {
+              setLoadTimedOut(false);
+              loadStartedRef.current = false;
+              setWebViewKey(prev => prev + 1);
+            }}
+            style={{ marginTop: 24, backgroundColor: BrandColors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 }}
+          >
+            <Text style={{ color: "#FFFFFF", fontSize: 16, fontWeight: "600" }}>Try Again</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <Animated.View
         style={[
