@@ -434,22 +434,30 @@ function NativeWebViewScreen() {
       };
       
       // Hide website's refresh button since app has native pull-to-refresh
-      var style = document.createElement('style');
-      style.textContent = \`
-        /* Hide refresh/reload buttons - app uses native pull-to-refresh */
-        button[aria-label="refresh"],
-        button[aria-label="Refresh"],
-        button[title="refresh"],
-        button[title="Refresh"],
-        .refresh-button,
-        .reload-button,
-        [data-testid="refresh-button"],
-        button:has(svg[class*="refresh"]),
-        button:has(svg[class*="rotate"]) {
-          display: none !important;
+      try {
+        var style = document.createElement('style');
+        style.textContent = \`
+          /* Hide refresh/reload buttons - app uses native pull-to-refresh */
+          button[aria-label="refresh"],
+          button[aria-label="Refresh"],
+          button[title="refresh"],
+          button[title="Refresh"],
+          .refresh-button,
+          .reload-button,
+          [data-testid="refresh-button"],
+          button:has(svg[class*="refresh"]),
+          button:has(svg[class*="rotate"]) {
+            display: none !important;
+          }
+        \`;
+        if (document.head) {
+          document.head.appendChild(style);
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            document.head.appendChild(style);
+          });
         }
-      \`;
-      document.head.appendChild(style);
+      } catch(e) {}
       
       // Expose biometric bridge functions for the website to call
       window.requestBiometricLogin = function() {
@@ -572,16 +580,28 @@ function NativeWebViewScreen() {
       window.isHealthStaffProsApp = true;
       window.HealthStaffProsApp = { version: '1.0', platform: '${Platform.OS}' };
       
-      // Disable zoom
-      var meta = document.createElement('meta');
-      meta.setAttribute('name', 'viewport');
-      meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-      document.getElementsByTagName('head')[0].appendChild(meta);
+      // Disable zoom - update existing viewport meta instead of adding a duplicate
+      try {
+        var existingMeta = document.querySelector('meta[name="viewport"]');
+        if (existingMeta) {
+          var currentContent = existingMeta.getAttribute('content') || '';
+          if (currentContent.indexOf('user-scalable=no') === -1) {
+            existingMeta.setAttribute('content', currentContent + ', user-scalable=no, maximum-scale=1.0');
+          }
+        } else {
+          var meta = document.createElement('meta');
+          meta.setAttribute('name', 'viewport');
+          meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+          if (document.head) document.head.appendChild(meta);
+        }
+      } catch(e) {}
       
       // Hide PWA install prompts if they exist
-      var style = document.createElement('style');
-      style.textContent = '.pwa-install-prompt, .app-install-banner, [data-pwa-install], .install-app-prompt, .add-to-home-screen, .install-banner { display: none !important; }';
-      document.head.appendChild(style);
+      try {
+        var pwaStyle = document.createElement('style');
+        pwaStyle.textContent = '.pwa-install-prompt, .app-install-banner, [data-pwa-install], .install-app-prompt, .add-to-home-screen, .install-banner { display: none !important; }';
+        if (document.head) document.head.appendChild(pwaStyle);
+      } catch(e) {}
       
       // Track scroll position
       window.addEventListener('scroll', function() {
@@ -1149,21 +1169,18 @@ function NativeWebViewScreen() {
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
         startInLoadingState={true}
-        userAgent={
-          Platform.OS === "ios"
-            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 HealthStaffProsApp/1.0"
-            : Platform.OS === "android"
-              ? "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 HealthStaffProsApp/1.0"
-              : undefined
-        }
         applicationNameForUserAgent="HealthStaffProsApp/1.0"
         allowFileAccess={true}
         allowFileAccessFromFileURLs={true}
         allowUniversalAccessFromFileURLs={true}
         allowsFullscreenVideo={true}
+        mixedContentMode="compatibility"
         overScrollMode="content"
         cacheMode="LOAD_DEFAULT"
         incognito={false}
+        setSupportMultipleWindows={false}
+        androidLayerType="hardware"
+        textZoom={100}
         renderLoading={() => (
           <View
             style={[
