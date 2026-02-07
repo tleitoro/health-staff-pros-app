@@ -1152,15 +1152,51 @@ function NativeWebViewScreen() {
         onHttpError={(syntheticEvent: any) => {
           const { nativeEvent } = syntheticEvent || {};
           console.log("[DEBUG] WebView: HTTP error", nativeEvent?.statusCode, nativeEvent?.url);
+          if (nativeEvent?.statusCode >= 500) {
+            handleError(syntheticEvent);
+          }
         }}
         onMessage={handleMessage}
+        injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
+        injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
         cacheEnabled={true}
+        pullToRefreshEnabled={Platform.OS !== "web"}
         allowsBackForwardNavigationGestures={true}
+        allowsInlineMediaPlayback={true}
+        mediaPlaybackRequiresUserAction={false}
+        startInLoadingState={true}
+        userAgent={
+          Platform.OS === "ios"
+            ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 HealthStaffProsApp/1.0"
+            : undefined
+        }
+        applicationNameForUserAgent="HealthStaffProsApp/1.0"
+        allowFileAccess={true}
+        allowFileAccessFromFileURLs={true}
+        allowUniversalAccessFromFileURLs={true}
+        allowsFullscreenVideo={true}
         mixedContentMode="compatibility"
+        overScrollMode="content"
+        cacheMode="LOAD_DEFAULT"
+        incognito={false}
+        setSupportMultipleWindows={false}
+        textZoom={100}
+        renderLoading={() => (
+          <View
+            style={[
+              styles.loadingContainer,
+              { backgroundColor: theme.backgroundRoot },
+            ]}
+          >
+            <ActivityIndicator size="large" color={BrandColors.primary} />
+          </View>
+        )}
+        contentInset={{ bottom: insets.bottom }}
+        automaticallyAdjustContentInsets={false}
       />
 
       <Animated.View
