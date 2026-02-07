@@ -140,7 +140,6 @@ export default function WebViewScreen() {
 }
 
 function NativeWebViewScreen() {
-  console.log("[WebView] NativeWebViewScreen rendering, WebView component:", WebView ? "loaded" : "NULL");
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
@@ -341,7 +340,6 @@ function NativeWebViewScreen() {
   );
 
   const handleLoadStart = useCallback(() => {
-    console.log("[WebView] Load started");
     loadStartedRef.current = true;
     setLoadTimedOut(false);
     setIsLoading(true);
@@ -350,7 +348,6 @@ function NativeWebViewScreen() {
   }, [progressOpacity]);
 
   const handleLoadEnd = useCallback(() => {
-    console.log("[WebView] Load ended");
     setIsLoading(false);
     setRefreshing(false);
     progressOpacity.value = withTiming(0, { duration: 300 });
@@ -358,9 +355,6 @@ function NativeWebViewScreen() {
 
   const handleLoadProgress = useCallback(
     ({ nativeEvent }: { nativeEvent: { progress: number } }) => {
-      if (Math.round(nativeEvent.progress * 100) % 25 === 0) {
-        console.log("[WebView] Progress:", Math.round(nativeEvent.progress * 100) + "%");
-      }
       setLoadProgress(nativeEvent.progress);
       progressWidth.value = withSpring(nativeEvent.progress * 100, {
         damping: 15,
@@ -370,10 +364,7 @@ function NativeWebViewScreen() {
     [progressWidth]
   );
 
-  const handleError = useCallback((syntheticEvent?: any) => {
-    const desc = syntheticEvent?.nativeEvent?.description || "unknown";
-    const code = syntheticEvent?.nativeEvent?.code || "unknown";
-    console.log("[WebView] Error:", desc, "code:", code);
+  const handleError = useCallback(() => {
     setHasError(true);
     setIsLoading(false);
     navigation.navigate("Error", { url: currentUrl });
