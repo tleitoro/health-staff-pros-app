@@ -1161,8 +1161,7 @@ function NativeWebViewScreen() {
         allowFileAccessFromFileURLs={true}
         allowUniversalAccessFromFileURLs={true}
         allowsFullscreenVideo={true}
-        overScrollMode="never"
-        scalesPageToFit={true}
+        overScrollMode="content"
         cacheMode="LOAD_DEFAULT"
         incognito={false}
         renderLoading={() => (
