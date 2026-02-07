@@ -39,15 +39,19 @@ const DEFAULT_PREFS: NotificationPrefs = {
   updates: false,
 };
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.log("Notifications not supported in this environment");
+}
 
 export default function NotificationsScreen() {
   const { theme } = useTheme();
@@ -87,46 +91,54 @@ export default function NotificationsScreen() {
     }
 
     if (value) {
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
+      try {
+        const { status: existingStatus } =
+          await Notifications.getPermissionsAsync();
 
-      if (existingStatus === "granted") {
-        const newPrefs = { ...prefs, enabled: true };
-        setPrefs(newPrefs);
-        savePreferences(newPrefs);
-        sendTestNotification();
-        return;
-      }
-
-      const { status } = await Notifications.requestPermissionsAsync();
-
-      if (status === "granted") {
-        const newPrefs = { ...prefs, enabled: true };
-        setPrefs(newPrefs);
-        savePreferences(newPrefs);
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (existingStatus === "granted") {
+          const newPrefs = { ...prefs, enabled: true };
+          setPrefs(newPrefs);
+          savePreferences(newPrefs);
+          sendTestNotification();
+          return;
         }
-        sendTestNotification();
-      } else {
-        Alert.alert(
-          "Permission Required",
-          "Please enable notifications in Settings to receive shift alerts.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Open Settings",
-              onPress: () => {
-                if (Platform.OS !== "web") {
-                  try {
-                    Linking.openSettings();
-                  } catch (error) {
-                    // openSettings not supported
+
+        const { status } = await Notifications.requestPermissionsAsync();
+
+        if (status === "granted") {
+          const newPrefs = { ...prefs, enabled: true };
+          setPrefs(newPrefs);
+          savePreferences(newPrefs);
+          if (Platform.OS !== "web") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
+          sendTestNotification();
+        } else {
+          Alert.alert(
+            "Permission Required",
+            "Please enable notifications in Settings to receive shift alerts.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () => {
+                  if (Platform.OS !== "web") {
+                    try {
+                      Linking.openSettings();
+                    } catch (error) {
+                      // openSettings not supported
+                    }
                   }
-                }
+                },
               },
-            },
-          ]
+            ]
+          );
+        }
+      } catch (e) {
+        console.log("Notifications not supported in this environment");
+        Alert.alert(
+          "Not Available",
+          "Push notifications are not available in Expo Go on Android. They will work in the production app."
         );
       }
     } else {
@@ -149,14 +161,18 @@ export default function NotificationsScreen() {
   );
 
   const sendTestNotification = async () => {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Notifications Enabled",
-        body: "You'll now receive alerts for new shifts and updates!",
-        sound: true,
-      },
-      trigger: { seconds: 1, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
-    });
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Notifications Enabled",
+          body: "You'll now receive alerts for new shifts and updates!",
+          sound: true,
+        },
+        trigger: { seconds: 1, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      });
+    } catch (e) {
+      console.log("Local notifications not supported in this environment");
+    }
   };
 
   const sendDemoNotification = async () => {
@@ -164,15 +180,19 @@ export default function NotificationsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "New Shift Available",
-        body: "RN - ICU position at Memorial Hospital. $45/hr. Tap to view details.",
-        sound: true,
-        data: { type: "new_shift", shiftId: "demo-123" },
-      },
-      trigger: { seconds: 2, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
-    });
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "New Shift Available",
+          body: "RN - ICU position at Memorial Hospital. $45/hr. Tap to view details.",
+          sound: true,
+          data: { type: "new_shift", shiftId: "demo-123" },
+        },
+        trigger: { seconds: 2, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      });
+    } catch (e) {
+      console.log("Local notifications not supported in this environment");
+    }
 
     Alert.alert(
       "Demo Notification Sent",
