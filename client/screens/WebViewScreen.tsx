@@ -21,10 +21,12 @@ import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Calendar from "expo-calendar";
+import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
+
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -40,24 +42,16 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 
-let Notifications: any = null;
-const isAndroidExpoGo = Platform.OS === 'android' && Constants.appOwnership === 'expo';
-if (!isAndroidExpoGo) {
-  try {
-    Notifications = require("expo-notifications");
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
-  } catch (e) {
-    console.log("Notifications not available in this environment");
-  }
-}
+// Configure how notifications appear when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const BIOMETRIC_CREDENTIALS_KEY = "healthstaffpros_biometric_credentials";
 
@@ -166,28 +160,18 @@ function NativeWebViewScreen() {
   useEffect(() => {
     registerForPushNotificationsAsync();
     
-    let notificationListener: any;
-    let responseListener: any;
+    // Listen for incoming notifications
+    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      console.log("Notification received:", notification);
+    });
     
-    if (Notifications) {
-      try {
-        notificationListener = Notifications.addNotificationReceivedListener((notification: any) => {
-          console.log("Notification received:", notification);
-        });
-        
-        responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
-          console.log("Notification response:", response);
-        });
-      } catch (e) {
-        console.log("Notification listeners not supported in this environment");
-      }
-    }
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log("Notification response:", response);
+    });
     
     return () => {
-      try {
-        if (notificationListener) notificationListener.remove();
-        if (responseListener) responseListener.remove();
-      } catch (e) {}
+      notificationListener.remove();
+      responseListener.remove();
     };
   }, []);
 
@@ -281,8 +265,8 @@ function NativeWebViewScreen() {
   );
 
   const registerForPushNotificationsAsync = async () => {
-    if (!Notifications || !Device.isDevice) {
-      console.log("Push notifications not available");
+    if (!Device.isDevice) {
+      console.log("Must use physical device for push notifications");
       return;
     }
 
@@ -909,7 +893,6 @@ function NativeWebViewScreen() {
               }
               
               // Try to send local notification
-              if (!Notifications) throw new Error("Notifications not available");
               await Notifications.scheduleNotificationAsync({
                 content: {
                   title: "Health Staff Pros",
