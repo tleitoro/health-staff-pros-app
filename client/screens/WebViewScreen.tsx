@@ -1142,13 +1142,7 @@ function NativeWebViewScreen() {
       <WebView
         key={webViewKey}
         ref={webViewRef}
-        source={{ 
-          uri: WEB_URL,
-          headers: {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-          }
-        }}
+        source={{ uri: WEB_URL }}
         style={[styles.webView, { marginTop: insets.top }]}
         onNavigationStateChange={handleNavigationStateChange}
         onLoadStart={handleLoadStart}
@@ -1158,47 +1152,15 @@ function NativeWebViewScreen() {
         onHttpError={(syntheticEvent: any) => {
           const { nativeEvent } = syntheticEvent || {};
           console.log("[DEBUG] WebView: HTTP error", nativeEvent?.statusCode, nativeEvent?.url);
-          if (nativeEvent?.statusCode >= 500) {
-            handleError(syntheticEvent);
-          }
         }}
         onMessage={handleMessage}
-        injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
-        injectedJavaScript={injectedJavaScript}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
         cacheEnabled={true}
-        pullToRefreshEnabled={Platform.OS !== "web"}
         allowsBackForwardNavigationGestures={true}
-        allowsInlineMediaPlayback={true}
-        mediaPlaybackRequiresUserAction={false}
-        startInLoadingState={true}
-        applicationNameForUserAgent="HealthStaffProsApp/1.0"
-        allowFileAccess={true}
-        allowFileAccessFromFileURLs={true}
-        allowUniversalAccessFromFileURLs={true}
-        allowsFullscreenVideo={true}
         mixedContentMode="compatibility"
-        overScrollMode="content"
-        cacheMode="LOAD_DEFAULT"
-        incognito={false}
-        setSupportMultipleWindows={false}
-        androidLayerType="hardware"
-        textZoom={100}
-        renderLoading={() => (
-          <View
-            style={[
-              styles.loadingContainer,
-              { backgroundColor: theme.backgroundRoot },
-            ]}
-          >
-            <ActivityIndicator size="large" color={BrandColors.primary} />
-          </View>
-        )}
-        contentInset={{ bottom: insets.bottom }}
-        automaticallyAdjustContentInsets={false}
       />
 
       <Animated.View
