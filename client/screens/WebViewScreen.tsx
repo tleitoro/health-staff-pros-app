@@ -738,7 +738,9 @@ function NativeWebViewScreen() {
     (event: { nativeEvent: { data: string } }) => {
       try {
         const data = JSON.parse(event.nativeEvent.data);
-        if (data.type === "scroll") {
+        if (data.type === "androidDebug") {
+          console.log("[DEBUG] Android WebView DOM:", JSON.stringify(data));
+        } else if (data.type === "scroll") {
           backToTopOpacity.value = withTiming(data.offsetY > 300 ? 1 : 0, {
             duration: 200,
           });
@@ -1158,7 +1160,27 @@ function NativeWebViewScreen() {
         }}
         onMessage={handleMessage}
         injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
-        injectedJavaScript={injectedJavaScript}
+        injectedJavaScript={Platform.OS === "android"
+          ? `
+            (function() {
+              window.isHealthStaffProsApp = true;
+              window.HealthStaffProsApp = { version: '1.0', platform: 'android' };
+              setTimeout(function() {
+                var bodyLen = document.body ? document.body.innerHTML.length : 0;
+                var title = document.title || 'no title';
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'androidDebug',
+                  bodyLength: bodyLen,
+                  title: title,
+                  url: window.location.href,
+                  bodyPreview: document.body ? document.body.innerHTML.substring(0, 200) : 'no body'
+                }));
+              }, 3000);
+              true;
+            })();
+          `
+          : injectedJavaScript
+        }
         javaScriptEnabled={true}
         domStorageEnabled={true}
         sharedCookiesEnabled={true}
@@ -1168,7 +1190,7 @@ function NativeWebViewScreen() {
         allowsBackForwardNavigationGestures={true}
         allowsInlineMediaPlayback={true}
         mediaPlaybackRequiresUserAction={false}
-        startInLoadingState={true}
+        startInLoadingState={Platform.OS !== "android"}
         userAgent={
           Platform.OS === "ios"
             ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 HealthStaffProsApp/1.0"
@@ -1184,8 +1206,9 @@ function NativeWebViewScreen() {
         cacheMode="LOAD_DEFAULT"
         incognito={false}
         setSupportMultipleWindows={false}
+        androidLayerType="none"
         textZoom={100}
-        renderLoading={() => (
+        renderLoading={Platform.OS !== "android" ? () => (
           <View
             style={[
               styles.loadingContainer,
@@ -1194,7 +1217,7 @@ function NativeWebViewScreen() {
           >
             <ActivityIndicator size="large" color={BrandColors.primary} />
           </View>
-        )}
+        ) : undefined}
         contentInset={{ bottom: insets.bottom }}
         automaticallyAdjustContentInsets={false}
       />
