@@ -1160,6 +1160,9 @@ function NativeWebViewScreen() {
         cacheMode="LOAD_DEFAULT"
         mixedContentMode="compatibility"
         setSupportMultipleWindows={false}
+        androidLayerType="hardware"
+        forceDarkOn={false}
+        textZoom={100}
         renderLoading={() => (
           <View
             style={[
