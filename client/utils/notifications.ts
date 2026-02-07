@@ -3,10 +3,15 @@ import Constants from "expo-constants";
 
 let NotificationsModule: any = null;
 
-try {
-  NotificationsModule = require("expo-notifications");
-} catch (e) {
-  console.log("expo-notifications not available in this environment");
+const isExpoGo = Constants.executionEnvironment === "storeClient";
+const shouldSkip = Platform.OS === "android" && isExpoGo;
+
+if (!shouldSkip) {
+  try {
+    NotificationsModule = require("expo-notifications");
+  } catch (e) {
+    console.log("expo-notifications not available in this environment");
+  }
 }
 
 const isAvailable = NotificationsModule !== null;
@@ -15,9 +20,7 @@ export function setNotificationHandler(config: any) {
   if (!isAvailable) return;
   try {
     NotificationsModule.setNotificationHandler(config);
-  } catch (e) {
-    console.log("setNotificationHandler not supported");
-  }
+  } catch (e) {}
 }
 
 export function addNotificationReceivedListener(callback: (notification: any) => void) {
@@ -66,24 +69,17 @@ export async function getExpoPushTokenAsync(options?: any) {
 }
 
 export async function scheduleNotificationAsync(config: any) {
-  if (!isAvailable) {
-    console.log("Notifications not available - skipping schedule");
-    return;
-  }
+  if (!isAvailable) return;
   try {
     return await NotificationsModule.scheduleNotificationAsync(config);
-  } catch (e) {
-    console.log("scheduleNotificationAsync failed:", e);
-  }
+  } catch (e) {}
 }
 
 export async function cancelAllScheduledNotificationsAsync() {
   if (!isAvailable) return;
   try {
     return await NotificationsModule.cancelAllScheduledNotificationsAsync();
-  } catch (e) {
-    console.log("cancelAllScheduledNotificationsAsync failed:", e);
-  }
+  } catch (e) {}
 }
 
 export async function getAllScheduledNotificationsAsync() {
