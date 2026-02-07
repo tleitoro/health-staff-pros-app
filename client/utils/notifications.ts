@@ -1,17 +1,21 @@
 import { Platform } from "react-native";
-import Constants from "expo-constants";
 
 let NotificationsModule: any = null;
 
-const isExpoGo = Constants.executionEnvironment === "storeClient";
-const shouldSkip = Platform.OS === "android" && isExpoGo;
+let shouldSkip = false;
+try {
+  const Constants = require("expo-constants").default;
+  const isExpoGo = Constants?.executionEnvironment === "storeClient" ||
+                   Constants?.appOwnership === "expo";
+  shouldSkip = Platform.OS === "android" && isExpoGo;
+} catch (e) {
+  shouldSkip = Platform.OS === "android";
+}
 
 if (!shouldSkip) {
   try {
     NotificationsModule = require("expo-notifications");
-  } catch (e) {
-    console.log("expo-notifications not available in this environment");
-  }
+  } catch (e) {}
 }
 
 const isAvailable = NotificationsModule !== null;
