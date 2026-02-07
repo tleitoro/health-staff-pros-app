@@ -21,27 +21,22 @@ import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Calendar from "expo-calendar";
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Contacts from "expo-contacts";
+import * as SafeNotifications from "@/utils/notifications";
 
 // Configure how notifications appear when app is in foreground
-// Wrap in try-catch to prevent crash on Android Expo Go (SDK 53+)
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} catch (e) {
-  console.log("Notifications not supported in this environment");
-}
+SafeNotifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 import Animated, {
   useAnimatedStyle,
@@ -169,11 +164,11 @@ function NativeWebViewScreen() {
     let responseListener: any;
     
     try {
-      notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      notificationListener = SafeNotifications.addNotificationReceivedListener(notification => {
         console.log("Notification received:", notification);
       });
       
-      responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      responseListener = SafeNotifications.addNotificationResponseReceivedListener(response => {
         console.log("Notification response:", response);
       });
     } catch (e) {
@@ -284,11 +279,11 @@ function NativeWebViewScreen() {
     }
 
     try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } = await SafeNotifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await SafeNotifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
@@ -299,7 +294,7 @@ function NativeWebViewScreen() {
 
       // Get the Expo push token
       const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
-      const tokenData = await Notifications.getExpoPushTokenAsync({
+      const tokenData = await SafeNotifications.getExpoPushTokenAsync({
         projectId: projectId,
       });
       
@@ -902,7 +897,7 @@ function NativeWebViewScreen() {
               }
               
               // Try to send local notification
-              await Notifications.scheduleNotificationAsync({
+              await SafeNotifications.scheduleNotificationAsync({
                 content: {
                   title: "Health Staff Pros",
                   body: data.message || "Test notification from Health Staff Pros",
