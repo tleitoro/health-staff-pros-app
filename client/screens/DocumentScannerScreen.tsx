@@ -82,15 +82,33 @@ export default function DocumentScannerScreen() {
     }
   };
 
-  const sendScannedImageToWeb = useCallback(async (uri: string) => {
+  const sendScannedImageToWeb = useCallback(async (uri: string, base64Data?: string) => {
     try {
-      // Convert image to base64
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
-      });
+      let base64 = base64Data;
+      
+      if (!base64) {
+        try {
+          base64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } catch (readError) {
+          console.error("Error reading file, trying copy approach:", readError);
+          const destUri = FileSystem.cacheDirectory + 'scanned_doc_' + Date.now() + '.jpg';
+          await FileSystem.copyAsync({ from: uri, to: destUri });
+          base64 = await FileSystem.readAsStringAsync(destUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+      }
+      
       const imageData = `data:image/jpeg;base64,${base64}`;
       
-      // Store the scanned image data for the WebView to pick up
+      await AsyncStorage.setItem('scannedDocumentUri', uri);
+      await AsyncStorage.setItem('scannedDocumentMeta', JSON.stringify({
+        documentType,
+        scannedAt: new Date().toISOString(),
+        hasImageData: true,
+      }));
       await AsyncStorage.setItem('scannedDocument', JSON.stringify({
         imageData,
         documentType,
@@ -101,11 +119,24 @@ export default function DocumentScannerScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       
-      // Navigate back to WebView
       navigation.goBack();
     } catch (error) {
       console.error("Error processing scanned image:", error);
-      Alert.alert("Error", "Could not process the scanned document. Please try again.");
+      try {
+        await AsyncStorage.setItem('scannedDocumentUri', uri);
+        await AsyncStorage.setItem('scannedDocumentMeta', JSON.stringify({
+          documentType,
+          scannedAt: new Date().toISOString(),
+          hasImageData: false,
+        }));
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        navigation.goBack();
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+        Alert.alert("Error", "Could not process the scanned document. Please try again.");
+      }
     }
   }, [documentType, navigation]);
 
@@ -118,14 +149,14 @@ export default function DocumentScannerScreen() {
 
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: forWebUpload ? 0.4 : 0.8,
         base64: forWebUpload,
+        skipProcessing: false,
       });
 
       if (photo) {
         if (forWebUpload) {
-          // Send the image back to the website
-          await sendScannedImageToWeb(photo.uri);
+          await sendScannedImageToWeb(photo.uri, photo.base64 || undefined);
         } else {
           const newDoc: ScannedDocument = {
             id: Date.now().toString(),
@@ -166,7 +197,6 @@ export default function DocumentScannerScreen() {
 
     if (!result.canceled && result.assets[0]) {
       if (forWebUpload) {
-        // Send the picked image back to the website
         await sendScannedImageToWeb(result.assets[0].uri);
       } else {
         const newDoc: ScannedDocument = {
