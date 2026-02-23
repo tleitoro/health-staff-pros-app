@@ -26,7 +26,7 @@ export type RootStackParamList = {
   Features: undefined;
   BiometricAuth: undefined;
   CalendarSync: undefined;
-  DocumentScanner: undefined;
+  DocumentScanner: { forWebUpload?: boolean; documentType?: string } | undefined;
   OfflineSchedule: undefined;
   Notifications: undefined;
   ContactPicker: undefined;
