@@ -593,6 +593,55 @@ function NativeWebViewScreen() {
         }));
       });
       
+      // Wire up website document scanner buttons to native scanner
+      function wireDocumentScannerButtons() {
+        // Find "Document Scanner" link/button in settings area
+        var allElements = document.querySelectorAll('a, button, div[role="button"], li, [onclick]');
+        allElements.forEach(function(el) {
+          var text = (el.textContent || '').trim().toLowerCase();
+          if ((text.includes('document scanner') || text.includes('scan documents')) && !el.dataset.nativeWired) {
+            el.dataset.nativeWired = 'true';
+            el.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                  type: 'openDocumentScanner',
+                  documentType: 'Document'
+                }));
+              }
+            }, true);
+          }
+        });
+        
+        // Find "Scan Document" button in upload modals
+        var scanButtons = document.querySelectorAll('button, a, div[role="button"]');
+        scanButtons.forEach(function(el) {
+          var text = (el.textContent || '').trim().toLowerCase();
+          if (text === 'scan document' && !el.dataset.nativeWired) {
+            el.dataset.nativeWired = 'true';
+            el.addEventListener('click', function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                  type: 'openDocumentScanner',
+                  documentType: 'Document',
+                  forWebUpload: true
+                }));
+              }
+            }, true);
+          }
+        });
+      }
+      
+      // Run immediately and also observe DOM changes for dynamically loaded modals
+      wireDocumentScannerButtons();
+      var scannerObserver = new MutationObserver(function() {
+        wireDocumentScannerButtons();
+      });
+      scannerObserver.observe(document.body, { childList: true, subtree: true });
+      
       // Watch for success toast/notification about profile picture update
       var profileUpdateDetected = false;
       var observer = new MutationObserver(function(mutations) {
