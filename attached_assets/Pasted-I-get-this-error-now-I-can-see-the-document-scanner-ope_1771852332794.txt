@@ -1,0 +1,37 @@
+I get this error now
+
+I can see the document scanner opens successfully but fails when processing the scanned image. Let me check the server logs and the upload endpoint to understand what's going wrong.
+
+The scanner opens but fails when processing the captured image. This is likely because the native app needs a JavaScript handler in the WebView to receive the scanned document data. Let me check the native bridge setup and add the missing handler.
+
+Now I need to see the native app code to understand how the scanner sends data back to the WebView.
+
+The issue is that the native app opens the scanner successfully, but when it tries to send the scanned image back to the web app, there's no callback function for it to call. The native app likely expects a window.onDocumentScanned function to be defined. Let me add that handler.
+
+Now I need to add a global window.onDocumentScanned callback that the native app can call after scanning. I'll update both the type declaration and the useEffect handler:
+
+Now I need to register the global callback functions so the native app can call them after scanning:
+
+Now let me also check the deployment logs to see if there were any errors when the scanner was used in production:
+
+The key issue is that the native app's scanner opens successfully but when it finishes scanning, it tries to call a JavaScript callback function (like window.onDocumentScanned) that wasn't defined. I've added those callbacks on the my-documents page, but the scanner button in NativeAppSettings also needs them. Let me also make this available globally so the native app can always find the callback.
+
+Let me check the App.tsx to see if I can register the scanner callback globally:
+
+Now let me also check the NativeAppSettings to make sure the scanner callback is registered there too, and let me restart the workflow to test:
+
+The native app needs to find the callback function on the window at all times, regardless of which page the user is on. Let me register these callbacks globally so they're always available:
+
+I need to register the scanner callbacks globally so they're available on any page. Let me find the right place in App.tsx:
+
+I'll add a global scanner callback registration component. Let me add it to App.tsx:
+
+Now update my-documents.tsx to listen for the custom event from the global bridge instead of registering its own window callbacks:
+
+Now let me restart the workflow and publish the changes:
+
+The app is running. Now, the key thing to understand is that this error ("Could not process the scanned document") is coming from the native iOS app's code, not from the web app. The fix I made registers global JavaScript callback functions (window.onDocumentScanned and window.handleScannedDocument) that the native app's Swift code is likely trying to call after scanning a document.
+
+However, since the native app is a separately built and deployed iOS app, I need to understand what callback function name the native Swift code is actually trying to call. Let me check if there's any documentation or native code reference:
+
+I've added global JavaScript callback handlers so the native scanner can send scanned image data back to the web app. Could you try the scanner again after the app updates? If you still see the error, the issue might be in the native iOS app code itself - can you share what callback function name your Swift code calls after scanning?
