@@ -89,14 +89,14 @@ export default function DocumentScannerScreen() {
       if (!base64) {
         try {
           base64 = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64' as any,
           });
         } catch (readError) {
           console.error("Error reading file, trying copy approach:", readError);
-          const destUri = FileSystem.cacheDirectory + 'scanned_doc_' + Date.now() + '.jpg';
+          const destUri = (FileSystem as any).cacheDirectory + 'scanned_doc_' + Date.now() + '.jpg';
           await FileSystem.copyAsync({ from: uri, to: destUri });
           base64 = await FileSystem.readAsStringAsync(destUri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64' as any,
           });
         }
       }
